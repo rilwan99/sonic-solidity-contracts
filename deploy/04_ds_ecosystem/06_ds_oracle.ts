@@ -3,8 +3,8 @@ import { DeployFunction } from "hardhat-deploy/types";
 
 import { getConfig } from "../../config/config";
 import {
-  DUSD_HARD_PEG_ORACLE_WRAPPER_ID,
-  ORACLE_AGGREGATOR_ID,
+  DS_HARD_PEG_ORACLE_WRAPPER_ID,
+  S_ORACLE_AGGREGATOR_ID,
 } from "../../typescript/deploy-ids";
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
@@ -12,11 +12,12 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   const config = await getConfig(hre);
 
-  await hre.deployments.deploy(DUSD_HARD_PEG_ORACLE_WRAPPER_ID, {
+  await hre.deployments.deploy(DS_HARD_PEG_ORACLE_WRAPPER_ID, {
     from: deployer,
     args: [
-      config.oracleAggregator.hardDStablePeg,
-      BigInt(10) ** BigInt(config.oracleAggregator.priceDecimals),
+      config.oracleAggregators.S.baseCurrency,
+      BigInt(10) ** BigInt(config.oracleAggregators.S.priceDecimals),
+      config.oracleAggregators.S.hardDStablePeg,
     ],
     contract: "HardPegOracleWrapper",
     autoMine: true,
@@ -24,27 +25,28 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   });
 
   // Get OracleAggregator contract
-  const { address: oracleAggregatorAddress } =
-    await hre.deployments.get(ORACLE_AGGREGATOR_ID);
+  const { address: oracleAggregatorAddress } = await hre.deployments.get(
+    S_ORACLE_AGGREGATOR_ID
+  );
   const oracleAggregatorContract = await hre.ethers.getContractAt(
     "OracleAggregator",
     oracleAggregatorAddress,
-    await hre.ethers.getSigner(deployer),
+    await hre.ethers.getSigner(deployer)
   );
 
   // Get HardPegOracleWrapper contract
   const { address: hardPegOracleWrapperAddress } = await hre.deployments.get(
-    DUSD_HARD_PEG_ORACLE_WRAPPER_ID,
+    DS_HARD_PEG_ORACLE_WRAPPER_ID
   );
 
   // Set the HardPegOracleWrapper as the oracle for dUSD
   console.log(
-    `Setting HardPegOracleWrapper for dUSD (${config.tokenAddresses.dUSD}) to`,
-    hardPegOracleWrapperAddress,
+    `Setting HardPegOracleWrapper for dS (${config.tokenAddresses.dS}) to`,
+    hardPegOracleWrapperAddress
   );
   await oracleAggregatorContract.setOracle(
-    config.tokenAddresses.dUSD,
-    hardPegOracleWrapperAddress,
+    config.tokenAddresses.dS,
+    hardPegOracleWrapperAddress
   );
 
   console.log(`🔮 ${__filename.split("/").slice(-2).join("/")}: ✅`);
@@ -52,8 +54,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   return true;
 };
 
-func.tags = ["dusd"];
-func.dependencies = [ORACLE_AGGREGATOR_ID];
-func.id = DUSD_HARD_PEG_ORACLE_WRAPPER_ID;
+func.tags = ["ds"];
+func.dependencies = ["s-oracle"];
+func.id = DS_HARD_PEG_ORACLE_WRAPPER_ID;
 
 export default func;

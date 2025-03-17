@@ -1,7 +1,11 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
-import { ORACLE_AGGREGATOR_PRICE_DECIMALS } from "../../typescript/oracle_aggregator/constants";
+import {
+  ORACLE_AGGREGATOR_PRICE_DECIMALS,
+  ORACLE_AGGREGATOR_BASE_CURRENCY_UNIT,
+} from "../../typescript/oracle_aggregator/constants";
 import { Config } from "../types";
+import { ZeroAddress } from "ethers";
 
 /**
  * Get the configuration for the network
@@ -10,7 +14,7 @@ import { Config } from "../types";
  * @returns The configuration for the network
  */
 export async function getConfig(
-  _hre: HardhatRuntimeEnvironment,
+  _hre: HardhatRuntimeEnvironment
 ): Promise<Config> {
   // Token info will only be populated after their deployment
   const dUSDDeployment = await _hre.deployments.getOrNull("dUSD");
@@ -35,9 +39,6 @@ export async function getConfig(
       mockOracleDeployments[feedName] = deployment.address;
     }
   }
-
-  // Define the threshold value (1.0 with appropriate decimals)
-  const thresholdValue = 10n ** BigInt(ORACLE_AGGREGATOR_PRICE_DECIMALS);
 
   return {
     MOCK_ONLY: {
@@ -92,103 +93,125 @@ export async function getConfig(
         },
       },
     },
+    dStables: {
+      dUSD: {
+        collaterals: [
+          USDCDeployment?.address || ZeroAddress,
+          USDSDeployment?.address || ZeroAddress,
+          sUSDSDeployment?.address || ZeroAddress,
+          frxUSDDeployment?.address || ZeroAddress,
+          sfrxUSDDeployment?.address || ZeroAddress,
+        ],
+      },
+      dS: {
+        collaterals: [
+          wSTokenDeployment?.address || ZeroAddress,
+          wOSTokenDeployment?.address || ZeroAddress,
+          stSTokenDeployment?.address || ZeroAddress,
+        ],
+      },
+    },
     tokenAddresses: {
       dUSD: emptyStringIfUndefined(dUSDDeployment?.address),
       dS: emptyStringIfUndefined(dSDeployment?.address),
       wS: emptyStringIfUndefined(wSTokenDeployment?.address),
     },
-    oracleAggregator: {
-      hardDStablePeg: 10 ** ORACLE_AGGREGATOR_PRICE_DECIMALS,
-      priceDecimals: ORACLE_AGGREGATOR_PRICE_DECIMALS,
-      api3OracleAssets: {
-        // No thresholding, passthrough raw prices
-        plainApi3OracleWrappers: {
-          ...(wOSTokenDeployment?.address && mockOracleDeployments["wOS_S"]
-            ? {
-                [wOSTokenDeployment.address]: mockOracleDeployments["wOS_S"],
-              }
-            : {}),
-          ...(stSTokenDeployment?.address && mockOracleDeployments["stS_S"]
-            ? {
-                [stSTokenDeployment.address]: mockOracleDeployments["stS_S"],
-              }
-            : {}),
-        },
-        // Threshold the stablecoins
-        api3OracleWrappersWithThresholding: {
-          ...(USDCDeployment?.address && mockOracleDeployments["USDC_USD"]
-            ? {
-                [USDCDeployment.address]: {
-                  proxy: mockOracleDeployments["USDC_USD"],
-                  lowerThreshold: thresholdValue,
-                  fixedPrice: thresholdValue,
-                },
-              }
-            : {}),
-          ...(USDSDeployment?.address && mockOracleDeployments["USDS_USD"]
-            ? {
-                [USDSDeployment.address]: {
-                  proxy: mockOracleDeployments["USDS_USD"],
-                  lowerThreshold: thresholdValue,
-                  fixedPrice: thresholdValue,
-                },
-              }
-            : {}),
-          ...(frxUSDDeployment?.address && mockOracleDeployments["frxUSD_USD"]
-            ? {
-                [frxUSDDeployment.address]: {
-                  proxy: mockOracleDeployments["frxUSD_USD"],
-                  lowerThreshold: thresholdValue,
-                  fixedPrice: thresholdValue,
-                },
-              }
-            : {}),
-          ...(wSTokenDeployment?.address && mockOracleDeployments["wS_USD"]
-            ? {
-                [wSTokenDeployment.address]: {
-                  proxy: mockOracleDeployments["wS_USD"],
-                  lowerThreshold: thresholdValue,
-                  fixedPrice: thresholdValue,
-                },
-              }
-            : {}),
-        },
+    oracleAggregators: {
+      USD: {
+        hardDStablePeg: 10n ** BigInt(ORACLE_AGGREGATOR_PRICE_DECIMALS),
+        priceDecimals: ORACLE_AGGREGATOR_PRICE_DECIMALS,
+        baseCurrency: ZeroAddress, // Note that USD is represented by the zero address, per Aave's convention
+        api3OracleAssets: {
+          // No thresholding, passthrough raw prices
+          plainApi3OracleWrappers: {},
+          // Threshold the stablecoins
+          api3OracleWrappersWithThresholding: {
+            ...(USDCDeployment?.address && mockOracleDeployments["USDC_USD"]
+              ? {
+                  [USDCDeployment.address]: {
+                    proxy: mockOracleDeployments["USDC_USD"],
+                    lowerThreshold: ORACLE_AGGREGATOR_BASE_CURRENCY_UNIT,
+                    fixedPrice: ORACLE_AGGREGATOR_BASE_CURRENCY_UNIT,
+                  },
+                }
+              : {}),
+            ...(USDSDeployment?.address && mockOracleDeployments["USDS_USD"]
+              ? {
+                  [USDSDeployment.address]: {
+                    proxy: mockOracleDeployments["USDS_USD"],
+                    lowerThreshold: ORACLE_AGGREGATOR_BASE_CURRENCY_UNIT,
+                    fixedPrice: ORACLE_AGGREGATOR_BASE_CURRENCY_UNIT,
+                  },
+                }
+              : {}),
+            ...(frxUSDDeployment?.address && mockOracleDeployments["frxUSD_USD"]
+              ? {
+                  [frxUSDDeployment.address]: {
+                    proxy: mockOracleDeployments["frxUSD_USD"],
+                    lowerThreshold: ORACLE_AGGREGATOR_BASE_CURRENCY_UNIT,
+                    fixedPrice: ORACLE_AGGREGATOR_BASE_CURRENCY_UNIT,
+                  },
+                }
+              : {}),
+          },
+          // Composite API3 oracle wrappers for sUSDS and sfrxUSD
+          compositeApi3OracleWrappersWithThresholding: {
+            // sUSDS composite feed (sUSDS/USDS * USDS/USD)
+            ...(sUSDSDeployment?.address &&
+            mockOracleDeployments["sUSDS_USDS"] &&
+            mockOracleDeployments["USDS_USD"]
+              ? {
+                  [sUSDSDeployment.address]: {
+                    feedAsset: sUSDSDeployment.address,
+                    proxy1: mockOracleDeployments["sUSDS_USDS"],
+                    proxy2: mockOracleDeployments["USDS_USD"],
+                    lowerThresholdInBase1: 0n, // No threshold for sUSDS/USDS
+                    fixedPriceInBase1: 0n,
+                    lowerThresholdInBase2: ORACLE_AGGREGATOR_BASE_CURRENCY_UNIT, // Threshold for USDS/USD
+                    fixedPriceInBase2: ORACLE_AGGREGATOR_BASE_CURRENCY_UNIT,
+                  },
+                }
+              : {}),
 
-        // Composite API3 oracle wrappers for sUSDS and sfrxUSD
-        compositeApi3OracleWrappersWithThresholding: {
-          // sUSDS composite feed (sUSDS/USDS * USDS/USD)
-          ...(sUSDSDeployment?.address &&
-          mockOracleDeployments["sUSDS_USDS"] &&
-          mockOracleDeployments["USDS_USD"]
-            ? {
-                [sUSDSDeployment.address]: {
-                  feedAsset: sUSDSDeployment.address,
-                  proxy1: mockOracleDeployments["sUSDS_USDS"],
-                  proxy2: mockOracleDeployments["USDS_USD"],
-                  lowerThresholdInBase1: 0n, // No threshold for sUSDS/USDS
-                  fixedPriceInBase1: 0n,
-                  lowerThresholdInBase2: thresholdValue, // Threshold for USDS/USD
-                  fixedPriceInBase2: thresholdValue,
-                },
-              }
-            : {}),
-
-          // sfrxUSD composite feed (sfrxUSD/frxUSD * frxUSD/USD)
-          ...(sfrxUSDDeployment?.address &&
-          mockOracleDeployments["sfrxUSD_frxUSD"] &&
-          mockOracleDeployments["frxUSD_USD"]
-            ? {
-                [sfrxUSDDeployment.address]: {
-                  feedAsset: sfrxUSDDeployment.address,
-                  proxy1: mockOracleDeployments["sfrxUSD_frxUSD"],
-                  proxy2: mockOracleDeployments["frxUSD_USD"],
-                  lowerThresholdInBase1: 0n, // No threshold for sfrxUSD/frxUSD
-                  fixedPriceInBase1: 0n,
-                  lowerThresholdInBase2: thresholdValue, // Threshold for frxUSD/USD
-                  fixedPriceInBase2: thresholdValue,
-                },
-              }
-            : {}),
+            // sfrxUSD composite feed (sfrxUSD/frxUSD * frxUSD/USD)
+            ...(sfrxUSDDeployment?.address &&
+            mockOracleDeployments["sfrxUSD_frxUSD"] &&
+            mockOracleDeployments["frxUSD_USD"]
+              ? {
+                  [sfrxUSDDeployment.address]: {
+                    feedAsset: sfrxUSDDeployment.address,
+                    proxy1: mockOracleDeployments["sfrxUSD_frxUSD"],
+                    proxy2: mockOracleDeployments["frxUSD_USD"],
+                    lowerThresholdInBase1: 0n, // No threshold for sfrxUSD/frxUSD
+                    fixedPriceInBase1: 0n,
+                    lowerThresholdInBase2: ORACLE_AGGREGATOR_BASE_CURRENCY_UNIT, // Threshold for frxUSD/USD
+                    fixedPriceInBase2: ORACLE_AGGREGATOR_BASE_CURRENCY_UNIT,
+                  },
+                }
+              : {}),
+          },
+        },
+      },
+      S: {
+        hardDStablePeg: 10n ** 18n, // wS has 18 decimals
+        priceDecimals: 18, // wS has 18 decimals
+        baseCurrency: wSTokenDeployment?.address || "", // We use wS to represent S since S is not ERC20
+        api3OracleAssets: {
+          // No thresholding, passthrough raw prices
+          plainApi3OracleWrappers: {
+            ...(wOSTokenDeployment?.address && mockOracleDeployments["wOS_S"]
+              ? {
+                  [wOSTokenDeployment.address]: mockOracleDeployments["wOS_S"],
+                }
+              : {}),
+            ...(stSTokenDeployment?.address && mockOracleDeployments["stS_S"]
+              ? {
+                  [stSTokenDeployment.address]: mockOracleDeployments["stS_S"],
+                }
+              : {}),
+          },
+          api3OracleWrappersWithThresholding: {},
+          compositeApi3OracleWrappersWithThresholding: {},
         },
       },
     },

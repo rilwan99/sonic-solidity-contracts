@@ -16,7 +16,10 @@ import {
   DS_CONFIG,
   DStableFixtureConfig,
 } from "./fixtures";
-import { ORACLE_AGGREGATOR_ID } from "../../typescript/deploy-ids";
+import {
+  USD_ORACLE_AGGREGATOR_ID,
+  S_ORACLE_AGGREGATOR_ID,
+} from "../../typescript/deploy-ids";
 
 // Run tests for each dStable configuration
 const dstableConfigs: DStableFixtureConfig[] = [DUSD_CONFIG, DS_CONFIG];
@@ -63,9 +66,13 @@ dstableConfigs.forEach((config) => {
           config.symbol as "dUSD" | "dS"
         ));
 
-      // Get the oracle aggregator
+      // Get the oracle aggregator based on the dStable configuration
+      const oracleAggregatorId =
+        config.symbol === "dUSD"
+          ? USD_ORACLE_AGGREGATOR_ID
+          : S_ORACLE_AGGREGATOR_ID;
       const oracleAggregatorAddress = (
-        await hre.deployments.get(ORACLE_AGGREGATOR_ID)
+        await hre.deployments.get(oracleAggregatorId)
       ).address;
       oracleAggregatorContract = await hre.ethers.getContractAt(
         "OracleAggregator",
@@ -82,12 +89,12 @@ dstableConfigs.forEach((config) => {
     });
 
     /**
-     * Calculates the expected USD value of a token amount based on oracle prices
+     * Calculates the expected base value of a token amount based on oracle prices
      * @param amount - The amount of token
      * @param tokenAddress - The address of the token
-     * @returns The USD value of the token amount
+     * @returns The base value of the token amount
      */
-    async function calculateUsdValueFromAmount(
+    async function calculateBaseValueFromAmount(
       amount: bigint,
       tokenAddress: Address
     ): Promise<bigint> {
@@ -99,20 +106,20 @@ dstableConfigs.forEach((config) => {
     }
 
     /**
-     * Calculates the expected token amount from a USD value based on oracle prices
-     * @param usdValue - The USD value
+     * Calculates the expected token amount from a base value based on oracle prices
+     * @param baseValue - The base value
      * @param tokenAddress - The address of the token
-     * @returns The token amount equivalent to the USD value
+     * @returns The token amount equivalent to the base value
      */
-    async function calculateAmountFromUsdValue(
-      usdValue: bigint,
+    async function calculateAmountFromBaseValue(
+      baseValue: bigint,
       tokenAddress: Address
     ): Promise<bigint> {
       const price = await oracleAggregatorContract.getAssetPrice(tokenAddress);
       const decimals = await (
         await hre.ethers.getContractAt("TestMintableERC20", tokenAddress)
       ).decimals();
-      return (usdValue * 10n ** BigInt(decimals)) / price;
+      return (baseValue * 10n ** BigInt(decimals)) / price;
     }
 
     describe("AMO allocation", () => {
@@ -300,18 +307,18 @@ dstableConfigs.forEach((config) => {
       });
     });
 
-    describe("USD value conversion", () => {
-      it("converts USD value to dStable amount correctly", async function () {
-        const usdValue = hre.ethers.parseUnits("1000", 8); // 8 decimals for USD value
+    describe("Base value conversion", () => {
+      it("converts base value to dStable amount correctly", async function () {
+        const baseValue = hre.ethers.parseUnits("1000", 8); // 8 decimals for base value
 
         // Calculate expected dStable amount using oracle prices
-        const expectedDstableAmount = await calculateAmountFromUsdValue(
-          usdValue,
+        const expectedDstableAmount = await calculateAmountFromBaseValue(
+          baseValue,
           dstableInfo.address
         );
 
         const actualDstableAmount =
-          await amoManagerContract.usdValueToDstableAmount(usdValue);
+          await amoManagerContract.baseValueToDstableAmount(baseValue);
 
         // Allow for a small rounding error due to fixed-point math
         const difference =
@@ -327,32 +334,32 @@ dstableConfigs.forEach((config) => {
         );
       });
 
-      it("converts dStable amount to USD value correctly", async function () {
+      it("converts dStable amount to base value correctly", async function () {
         const dstableAmount = hre.ethers.parseUnits(
           "1000",
           dstableInfo.decimals
         );
 
-        // Calculate expected USD value using oracle prices
-        const expectedUsdValue = await calculateUsdValueFromAmount(
+        // Calculate expected base value using oracle prices
+        const expectedBaseValue = await calculateBaseValueFromAmount(
           dstableAmount,
           dstableInfo.address
         );
 
-        const actualUsdValue =
-          await amoManagerContract.dstableAmountToUsdValue(dstableAmount);
+        const actualBaseValue =
+          await amoManagerContract.dstableAmountToBaseValue(dstableAmount);
 
         // Allow for a small rounding error due to fixed-point math
         const difference =
-          actualUsdValue > expectedUsdValue
-            ? actualUsdValue - expectedUsdValue
-            : expectedUsdValue - actualUsdValue;
+          actualBaseValue > expectedBaseValue
+            ? actualBaseValue - expectedBaseValue
+            : expectedBaseValue - actualBaseValue;
 
-        const acceptableError = (expectedUsdValue * 1n) / 100n; // 1% error margin
+        const acceptableError = (expectedBaseValue * 1n) / 100n; // 1% error margin
 
         assert.isTrue(
           difference <= acceptableError,
-          `USD value difference (${difference}) exceeds acceptable error (${acceptableError}). Expected: ${expectedUsdValue}, Actual: ${actualUsdValue}`
+          `Base value difference (${difference}) exceeds acceptable error (${acceptableError}). Expected: ${expectedBaseValue}, Actual: ${actualBaseValue}`
         );
       });
     });

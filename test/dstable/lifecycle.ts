@@ -13,7 +13,10 @@ import {
   MockOracleAggregator,
   OracleAggregator,
 } from "../../typechain-types";
-import { ORACLE_AGGREGATOR_ID } from "../../typescript/deploy-ids";
+import {
+  USD_ORACLE_AGGREGATOR_ID,
+  S_ORACLE_AGGREGATOR_ID,
+} from "../../typescript/deploy-ids";
 import {
   getTokenContractForSymbol,
   TokenInfo,
@@ -88,8 +91,13 @@ dstableConfigs.forEach((config) => {
         await hre.ethers.getSigner(deployer)
       );
 
+      // Get the oracle aggregator based on the dStable configuration
+      const oracleAggregatorId =
+        config.symbol === "dUSD"
+          ? USD_ORACLE_AGGREGATOR_ID
+          : S_ORACLE_AGGREGATOR_ID;
       const oracleAggregatorAddress = (
-        await hre.deployments.get(ORACLE_AGGREGATOR_ID)
+        await hre.deployments.get(oracleAggregatorId)
       ).address;
       oracleAggregatorContract = await hre.ethers.getContractAt(
         "OracleAggregator",
@@ -118,7 +126,7 @@ dstableConfigs.forEach((config) => {
       );
 
       // Initialize all collateral tokens for this dStable
-      for (const collateralSymbol of config.collateralSymbols) {
+      for (const collateralSymbol of config.peggedCollaterals) {
         const { contract, tokenInfo } = await getTokenContractForSymbol(
           hre,
           deployer,
@@ -126,10 +134,6 @@ dstableConfigs.forEach((config) => {
         );
         collateralContracts.set(collateralSymbol, contract as TestERC20);
         collateralInfos.set(collateralSymbol, tokenInfo);
-
-        // Allow collaterals in vaults
-        await collateralHolderVaultContract.allowCollateral(tokenInfo.address);
-        await mockAmoVaultContract.allowCollateral(tokenInfo.address);
       }
 
       // Enable MockAmoVault in the AmoManager
@@ -151,12 +155,12 @@ dstableConfigs.forEach((config) => {
     });
 
     /**
-     * Calculates the expected USD value of a token amount based on oracle prices
+     * Calculates the expected base value of a token amount based on oracle prices
      * @param amount - The amount of token
      * @param tokenAddress - The address of the token
-     * @returns The USD value of the token amount
+     * @returns The base value of the token amount
      */
-    async function calculateUsdValueFromAmount(
+    async function calculateBaseValueFromAmount(
       amount: bigint,
       tokenAddress: Address
     ): Promise<bigint> {
@@ -168,20 +172,20 @@ dstableConfigs.forEach((config) => {
     }
 
     /**
-     * Calculates the expected token amount from a USD value based on oracle prices
-     * @param usdValue - The USD value
+     * Calculates the expected token amount from a base value based on oracle prices
+     * @param baseValue - The base value
      * @param tokenAddress - The address of the token
-     * @returns The token amount equivalent to the USD value
+     * @returns The token amount equivalent to the base value
      */
-    async function calculateAmountFromUsdValue(
-      usdValue: bigint,
+    async function calculateAmountFromBaseValue(
+      baseValue: bigint,
       tokenAddress: Address
     ): Promise<bigint> {
       const price = await oracleAggregatorContract.getAssetPrice(tokenAddress);
       const decimals = await (
         await hre.ethers.getContractAt("TestERC20", tokenAddress)
       ).decimals();
-      return (usdValue * 10n ** BigInt(decimals)) / price;
+      return (baseValue * 10n ** BigInt(decimals)) / price;
     }
 
     /**
@@ -193,14 +197,14 @@ dstableConfigs.forEach((config) => {
       inputToken: Address,
       outputToken: Address
     ): Promise<bigint> {
-      // First convert input to USD value
-      const usdValue = await calculateUsdValueFromAmount(
+      // First convert input to base value
+      const baseValue = await calculateBaseValueFromAmount(
         inputAmount,
         inputToken
       );
 
-      // Then convert USD value to output token amount
-      return calculateAmountFromUsdValue(usdValue, outputToken);
+      // Then convert base value to output token amount
+      return calculateAmountFromBaseValue(baseValue, outputToken);
     }
 
     /**
@@ -267,7 +271,7 @@ dstableConfigs.forEach((config) => {
       // 1. Total value in the system (dStable circulating + AmoVault value) >= collateral value
       const circulatingDstable = await issuerContract.circulatingDstable();
       const circulatingDstableValue =
-        await amoManagerContract.dstableAmountToUsdValue(circulatingDstable);
+        await amoManagerContract.dstableAmountToBaseValue(circulatingDstable);
 
       const totalCollateralValue =
         await collateralHolderVaultContract.totalValue();
@@ -321,11 +325,11 @@ dstableConfigs.forEach((config) => {
       await checkInvariants();
 
       // 1. Transfer tokens to users for testing
-      const primaryCollateralSymbol = config.collateralSymbols[0];
+      const primaryCollateralSymbol = config.peggedCollaterals[0];
       const secondaryCollateralSymbol =
-        config.collateralSymbols.length > 1
-          ? config.collateralSymbols[1]
-          : config.collateralSymbols[0];
+        config.peggedCollaterals.length > 1
+          ? config.peggedCollaterals[1]
+          : config.peggedCollaterals[0];
 
       const primaryCollateralContract = collateralContracts.get(
         primaryCollateralSymbol
@@ -358,8 +362,8 @@ dstableConfigs.forEach((config) => {
       );
 
       // Calculate expected dStable amount based on oracle prices
-      const expectedDstableForPrimary = await calculateAmountFromUsdValue(
-        await calculateUsdValueFromAmount(
+      const expectedDstableForPrimary = await calculateAmountFromBaseValue(
+        await calculateBaseValueFromAmount(
           primaryCollateralToDeposit,
           primaryCollateralInfo.address
         ),
@@ -390,8 +394,8 @@ dstableConfigs.forEach((config) => {
       );
 
       // Calculate expected dStable amount based on oracle prices
-      const expectedDstableForSecondary = await calculateAmountFromUsdValue(
-        await calculateUsdValueFromAmount(
+      const expectedDstableForSecondary = await calculateAmountFromBaseValue(
+        await calculateBaseValueFromAmount(
           secondaryCollateralToDeposit,
           secondaryCollateralInfo.address
         ),
@@ -459,8 +463,11 @@ dstableConfigs.forEach((config) => {
       );
 
       // Calculate expected collateral amount based on oracle prices
-      const expectedCollateralToReceive = await calculateAmountFromUsdValue(
-        await calculateUsdValueFromAmount(dstableToRedeem, dstableInfo.address),
+      const expectedCollateralToReceive = await calculateAmountFromBaseValue(
+        await calculateBaseValueFromAmount(
+          dstableToRedeem,
+          dstableInfo.address
+        ),
         primaryCollateralInfo.address
       );
 
@@ -520,8 +527,8 @@ dstableConfigs.forEach((config) => {
       const user2RemainingDstable = await dstableContract.balanceOf(user2);
 
       // Calculate expected collateral amount based on oracle prices
-      const expectedSecondaryCollateral = await calculateAmountFromUsdValue(
-        await calculateUsdValueFromAmount(
+      const expectedSecondaryCollateral = await calculateAmountFromBaseValue(
+        await calculateBaseValueFromAmount(
           user2RemainingDstable,
           dstableInfo.address
         ),

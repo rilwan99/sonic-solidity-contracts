@@ -17,7 +17,10 @@ import {
   DS_CONFIG,
   DStableFixtureConfig,
 } from "./fixtures";
-import { ORACLE_AGGREGATOR_ID } from "../../typescript/deploy-ids";
+import {
+  USD_ORACLE_AGGREGATOR_ID,
+  S_ORACLE_AGGREGATOR_ID,
+} from "../../typescript/deploy-ids";
 
 // Run tests for each dStable configuration
 const dstableConfigs: DStableFixtureConfig[] = [DUSD_CONFIG, DS_CONFIG];
@@ -49,9 +52,13 @@ dstableConfigs.forEach((config) => {
         await hre.ethers.getSigner(deployer)
       );
 
-      // Get the oracle aggregator
+      // Get the oracle aggregator based on the dStable configuration
+      const oracleAggregatorId =
+        config.symbol === "dUSD"
+          ? USD_ORACLE_AGGREGATOR_ID
+          : S_ORACLE_AGGREGATOR_ID;
       const oracleAggregatorAddress = (
-        await hre.deployments.get(ORACLE_AGGREGATOR_ID)
+        await hre.deployments.get(oracleAggregatorId)
       ).address;
       oracleAggregatorContract = await hre.ethers.getContractAt(
         "OracleAggregator",
@@ -60,7 +67,7 @@ dstableConfigs.forEach((config) => {
       );
 
       // Initialize all collateral tokens for this dStable
-      for (const collateralSymbol of config.collateralSymbols) {
+      for (const collateralSymbol of config.peggedCollaterals) {
         const { contract, tokenInfo } = await getTokenContractForSymbol(
           hre,
           deployer,
@@ -76,12 +83,12 @@ dstableConfigs.forEach((config) => {
     });
 
     /**
-     * Calculates the expected USD value of a token amount based on oracle prices
+     * Calculates the expected base value of a token amount based on oracle prices
      * @param amount - The amount of token
      * @param tokenAddress - The address of the token
-     * @returns The USD value of the token amount
+     * @returns The base value of the token amount
      */
-    async function calculateUsdValueFromAmount(
+    async function calculateBaseValueFromAmount(
       amount: bigint,
       tokenAddress: Address
     ): Promise<bigint> {
@@ -93,31 +100,39 @@ dstableConfigs.forEach((config) => {
     }
 
     /**
-     * Calculates the expected token amount from a USD value based on oracle prices
-     * @param usdValue - The USD value
+     * Calculates the expected token amount from a base value based on oracle prices
+     * @param baseValue - The base value
      * @param tokenAddress - The address of the token
-     * @returns The token amount equivalent to the USD value
+     * @returns The token amount equivalent to the base value
      */
-    async function calculateAmountFromUsdValue(
-      usdValue: bigint,
+    async function calculateAmountFromBaseValue(
+      baseValue: bigint,
       tokenAddress: Address
     ): Promise<bigint> {
       const price = await oracleAggregatorContract.getAssetPrice(tokenAddress);
       const decimals = await (
         await hre.ethers.getContractAt("TestERC20", tokenAddress)
       ).decimals();
-      return (usdValue * 10n ** BigInt(decimals)) / price;
+      return (baseValue * 10n ** BigInt(decimals)) / price;
     }
 
     describe("Collateral management", () => {
       // Test for each collateral type
-      config.collateralSymbols.forEach((collateralSymbol) => {
+      config.peggedCollaterals.forEach((collateralSymbol) => {
         it(`allows ${collateralSymbol} as collateral`, async function () {
           const collateralInfo = collateralInfos.get(
             collateralSymbol
           ) as TokenInfo;
 
-          await collateralVaultContract.allowCollateral(collateralInfo.address);
+          // Verify that the collateral is now supported
+          const isSupported =
+            await collateralVaultContract.isCollateralSupported(
+              collateralInfo.address
+            );
+          assert.isTrue(
+            isSupported,
+            `${collateralSymbol} should be supported as collateral`
+          );
 
           // There's no direct method to check if collateral is allowed, so we'll test by trying to deposit
           const depositAmount = hre.ethers.parseUnits(
@@ -147,9 +162,6 @@ dstableConfigs.forEach((config) => {
           const collateralInfo = collateralInfos.get(
             collateralSymbol
           ) as TokenInfo;
-
-          // Allow this collateral in the vault
-          await collateralVaultContract.allowCollateral(collateralInfo.address);
 
           const depositAmount = hre.ethers.parseUnits(
             "500",
@@ -222,22 +234,19 @@ dstableConfigs.forEach((config) => {
       });
     });
 
-    describe("USD value calculations", () => {
+    describe("Base value calculations", () => {
       // Test with first collateral for simplicity
       it("calculates total value correctly", async function () {
         let expectedTotalValue = 0n;
 
         // Deposit all collaterals and track expected total value
-        for (const collateralSymbol of config.collateralSymbols) {
+        for (const collateralSymbol of config.peggedCollaterals) {
           const collateralContract = collateralContracts.get(
             collateralSymbol
           ) as TestERC20;
           const collateralInfo = collateralInfos.get(
             collateralSymbol
           ) as TokenInfo;
-
-          // Allow this collateral in the vault
-          await collateralVaultContract.allowCollateral(collateralInfo.address);
 
           const depositAmount = hre.ethers.parseUnits(
             "100",
@@ -254,8 +263,8 @@ dstableConfigs.forEach((config) => {
             collateralInfo.address
           );
 
-          // Calculate expected USD value of this collateral using oracle prices
-          const collateralValue = await calculateUsdValueFromAmount(
+          // Calculate expected base value of this collateral using oracle prices
+          const collateralValue = await calculateBaseValueFromAmount(
             depositAmount,
             collateralInfo.address
           );
@@ -278,28 +287,28 @@ dstableConfigs.forEach((config) => {
         );
       });
 
-      it("correctly converts between USD value and asset amount", async function () {
-        const collateralSymbol = config.collateralSymbols[0];
+      it("correctly converts between base value and asset amount", async function () {
+        const collateralSymbol = config.peggedCollaterals[0];
         const collateralInfo = collateralInfos.get(
           collateralSymbol
         ) as TokenInfo;
 
-        // Use a standard USD value for testing
-        const usdValue = hre.ethers.parseUnits("100", 8); // 100 USD with 8 decimals
+        // Use a standard base value for testing
+        const baseValue = hre.ethers.parseUnits("100", 8); // 100 base units with 8 decimals
 
         // Get the asset amount from the contract
         const assetAmount = await collateralVaultContract.assetAmountFromValue(
-          usdValue,
+          baseValue,
           collateralInfo.address
         );
 
         // Calculate the expected asset amount using oracle prices
-        const expectedAssetAmount = await calculateAmountFromUsdValue(
-          usdValue,
+        const expectedAssetAmount = await calculateAmountFromBaseValue(
+          baseValue,
           collateralInfo.address
         );
 
-        // Calculate the USD value from the asset amount using the contract
+        // Calculate the base value from the asset amount using the contract
         const calculatedValue =
           await collateralVaultContract.assetValueFromAmount(
             assetAmount,
@@ -313,12 +322,12 @@ dstableConfigs.forEach((config) => {
             : expectedAssetAmount - assetAmount;
 
         const valueDifference =
-          calculatedValue > usdValue
-            ? calculatedValue - usdValue
-            : usdValue - calculatedValue;
+          calculatedValue > baseValue
+            ? calculatedValue - baseValue
+            : baseValue - calculatedValue;
 
         const acceptableAmountError = (expectedAssetAmount * 1n) / 100n; // 1% error margin
-        const acceptableValueError = (usdValue * 1n) / 100n; // 1% error margin
+        const acceptableValueError = (baseValue * 1n) / 100n; // 1% error margin
 
         assert.isTrue(
           amountDifference <= acceptableAmountError,
@@ -327,14 +336,14 @@ dstableConfigs.forEach((config) => {
 
         assert.isTrue(
           valueDifference <= acceptableValueError,
-          `USD value difference (${valueDifference}) exceeds acceptable error (${acceptableValueError}). Expected: ${usdValue}, Actual: ${calculatedValue}`
+          `Base value difference (${valueDifference}) exceeds acceptable error (${acceptableValueError}). Expected: ${baseValue}, Actual: ${calculatedValue}`
         );
       });
     });
 
     describe("Administrative functions", () => {
       it("allows authorized withdrawals", async function () {
-        const collateralSymbol = config.collateralSymbols[0];
+        const collateralSymbol = config.peggedCollaterals[0];
         const collateralContract = collateralContracts.get(
           collateralSymbol
         ) as TestERC20;
@@ -342,8 +351,6 @@ dstableConfigs.forEach((config) => {
           collateralSymbol
         ) as TokenInfo;
 
-        // Allow this collateral in the vault and deposit
-        await collateralVaultContract.allowCollateral(collateralInfo.address);
         const depositAmount = hre.ethers.parseUnits(
           "100",
           collateralInfo.decimals
@@ -400,7 +407,7 @@ dstableConfigs.forEach((config) => {
       });
 
       it("prevents unauthorized withdrawals", async function () {
-        const collateralSymbol = config.collateralSymbols[0];
+        const collateralSymbol = config.peggedCollaterals[0];
         const collateralContract = collateralContracts.get(
           collateralSymbol
         ) as TestERC20;
@@ -408,8 +415,6 @@ dstableConfigs.forEach((config) => {
           collateralSymbol
         ) as TokenInfo;
 
-        // Allow this collateral in the vault and deposit
-        await collateralVaultContract.allowCollateral(collateralInfo.address);
         const depositAmount = hre.ethers.parseUnits(
           "100",
           collateralInfo.decimals

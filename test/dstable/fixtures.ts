@@ -3,7 +3,8 @@ import hre, { deployments } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
 import {
-  ORACLE_AGGREGATOR_ID,
+  USD_ORACLE_AGGREGATOR_ID,
+  S_ORACLE_AGGREGATOR_ID,
   DUSD_ISSUER_CONTRACT_ID,
   DUSD_REDEEMER_CONTRACT_ID,
   DUSD_COLLATERAL_VAULT_CONTRACT_ID,
@@ -21,14 +22,16 @@ export interface DStableFixtureConfig {
   redeemerContractId: string;
   collateralVaultContractId: string;
   amoManagerId: string;
-  collateralSymbols: string[];
+  oracleAggregatorId: string;
+  peggedCollaterals: string[];
+  yieldBearingCollaterals: string[];
 }
 
 // Create a fixture factory for any dstable based on its configuration
 export const createDStableFixture = (config: DStableFixtureConfig) => {
   return deployments.createFixture(async ({ deployments }) => {
     await deployments.fixture(); // Start from a fresh deployment
-    await deployments.fixture([config.symbol.toLowerCase(), "local-setup"]); // Include local-setup to use the mock Oracle
+    await deployments.fixture(["local-setup", config.symbol.toLowerCase()]); // Include local-setup to use the mock Oracle
   });
 };
 
@@ -49,8 +52,9 @@ export const createDStableAmoFixture = (config: DStableFixtureConfig) => {
       config.symbol
     );
 
-    const { address: oracleAggregatorAddress } =
-      await deployments.get(ORACLE_AGGREGATOR_ID);
+    const { address: oracleAggregatorAddress } = await deployments.get(
+      config.oracleAggregatorId
+    );
 
     // Deploy MockAmoVault using standard deployment
     await hre.deployments.deploy("MockAmoVault", {
@@ -76,7 +80,9 @@ export const DUSD_CONFIG: DStableFixtureConfig = {
   redeemerContractId: DUSD_REDEEMER_CONTRACT_ID,
   collateralVaultContractId: DUSD_COLLATERAL_VAULT_CONTRACT_ID,
   amoManagerId: DUSD_AMO_MANAGER_ID,
-  collateralSymbols: ["frxUSD", "USDC"],
+  oracleAggregatorId: USD_ORACLE_AGGREGATOR_ID,
+  peggedCollaterals: ["frxUSD", "USDC", "USDS"], // USDC is interesting due to 6 decimals
+  yieldBearingCollaterals: ["sfrxUSD", "sUSDS"],
 };
 
 export const DS_CONFIG: DStableFixtureConfig = {
@@ -85,5 +91,7 @@ export const DS_CONFIG: DStableFixtureConfig = {
   redeemerContractId: DS_REDEEMER_CONTRACT_ID,
   collateralVaultContractId: DS_COLLATERAL_VAULT_CONTRACT_ID,
   amoManagerId: DS_AMO_MANAGER_ID,
-  collateralSymbols: ["wS", "wOS", "stS"],
+  oracleAggregatorId: S_ORACLE_AGGREGATOR_ID,
+  peggedCollaterals: ["wS"],
+  yieldBearingCollaterals: ["wOS", "stS"],
 };

@@ -1,7 +1,14 @@
+import { Address } from "hardhat-deploy/types";
+
 export interface Config {
   readonly MOCK_ONLY?: MockConfig;
   readonly tokenAddresses: TokenAddresses;
-  readonly oracleAggregator: OracleAggregatorConfig;
+  readonly oracleAggregators: {
+    [key: string]: OracleAggregatorConfig;
+  };
+  readonly dStables: {
+    [key: string]: DStableConfig;
+  };
 }
 
 // Configuration for mocking infrastructure on local and test networks
@@ -16,6 +23,10 @@ export interface MockConfig {
   };
 }
 
+export interface DStableConfig {
+  readonly collaterals: Address[];
+}
+
 export interface TokenAddresses {
   readonly dUSD: string;
   readonly dS: string;
@@ -24,7 +35,8 @@ export interface TokenAddresses {
 
 export interface OracleAggregatorConfig {
   readonly priceDecimals: number;
-  readonly hardDStablePeg: number;
+  readonly hardDStablePeg: bigint;
+  readonly baseCurrency: string;
   readonly api3OracleAssets: {
     plainApi3OracleWrappers: {
       [key: string]: string;

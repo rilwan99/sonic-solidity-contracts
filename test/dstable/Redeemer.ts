@@ -1,6 +1,7 @@
 import { assert, expect } from "chai";
 import hre, { getNamedAccounts } from "hardhat";
 import { Address } from "hardhat-deploy/types";
+import { ZeroAddress } from "ethers";
 
 import {
   AmoManager,
@@ -21,7 +22,10 @@ import {
   DS_CONFIG,
   DStableFixtureConfig,
 } from "./fixtures";
-import { ORACLE_AGGREGATOR_ID } from "../../typescript/deploy-ids";
+import {
+  USD_ORACLE_AGGREGATOR_ID,
+  S_ORACLE_AGGREGATOR_ID,
+} from "../../typescript/deploy-ids";
 
 // Define which assets are yield-bearing vs stable for reference
 const yieldBearingAssets = new Set(["sfrxUSD", "stS", "wOS", "wS"]);
@@ -47,15 +51,15 @@ async function calculateExpectedCollateralAmount(
   const collateralPrice =
     await oracleAggregator.getAssetPrice(collateralAddress);
 
-  // Calculate USD value of dStable
+  // Calculate base value of dStable
   // Formula: (dstableAmount * dstablePrice) / 10^dstableDecimals
-  const dstableValueInUsd =
+  const dstableBaseValue =
     (dstableAmount * dstablePrice) / 10n ** BigInt(dstableDecimals);
 
-  // Convert USD value to collateral amount
-  // Formula: (dstableValueInUsd * 10^collateralDecimals) / collateralPrice
+  // Convert base value to collateral amount
+  // Formula: (dstableBaseValue * 10^collateralDecimals) / collateralPrice
   return (
-    (dstableValueInUsd * 10n ** BigInt(collateralDecimals)) / collateralPrice
+    (dstableBaseValue * 10n ** BigInt(collateralDecimals)) / collateralPrice
   );
 }
 
@@ -119,9 +123,8 @@ dstableConfigs.forEach((config) => {
         await hre.ethers.getSigner(deployer)
       );
 
-      // Get the oracle aggregator
       const oracleAggregatorAddress = (
-        await hre.deployments.get(ORACLE_AGGREGATOR_ID)
+        await hre.deployments.get(config.oracleAggregatorId)
       ).address;
       oracleAggregatorContract = await hre.ethers.getContractAt(
         "OracleAggregator",
@@ -129,17 +132,17 @@ dstableConfigs.forEach((config) => {
         await hre.ethers.getSigner(deployer)
       );
 
-      // Get dStable token info
-      const dstableResult = await getTokenContractForSymbol(
+      // Get dStable token
+      const { contract, tokenInfo } = await getTokenContractForSymbol(
         hre,
         deployer,
         config.symbol
       );
-      dstableContract = dstableResult.contract as TestMintableERC20;
-      dstableInfo = dstableResult.tokenInfo;
+      dstableContract = contract as TestMintableERC20;
+      dstableInfo = tokenInfo;
 
       // Initialize all collateral tokens for this dStable
-      for (const collateralSymbol of config.collateralSymbols) {
+      for (const collateralSymbol of config.peggedCollaterals) {
         const result = await getTokenContractForSymbol(
           hre,
           deployer,
@@ -148,52 +151,28 @@ dstableConfigs.forEach((config) => {
         collateralContracts.set(collateralSymbol, result.contract as TestERC20);
         collateralInfos.set(collateralSymbol, result.tokenInfo);
 
-        // Allow this collateral in the vault
-        try {
-          await collateralVaultContract.allowCollateral(
-            result.tokenInfo.address
-          );
-        } catch (e) {
-          // Ignore if already allowed
-        }
+        // Transfer 1000 of each collateral to user1 for testing
+        const amount = hre.ethers.parseUnits("1000", result.tokenInfo.decimals);
+        await result.contract.transfer(user1, amount);
 
-        // Transfer collateral to the vault for redemption
-        const amount = hre.ethers.parseUnits(
-          "10000",
-          result.tokenInfo.decimals
-        );
-        await result.contract.approve(
-          await collateralVaultContract.getAddress(),
-          amount
-        );
-        await collateralVaultContract.deposit(amount, result.tokenInfo.address);
-
-        // Mint tokens to user1 (assuming these are test tokens with mint function)
+        // Approve collateral for issuer
         const userAmount = hre.ethers.parseUnits(
-          "10000",
+          "500",
           result.tokenInfo.decimals
         );
-        if ("mint" in result.contract) {
-          await (result.contract as TestMintableERC20).mint(user1, userAmount);
-        } else {
-          // If not mintable, transfer from deployer to user1
-          await result.contract.transfer(user1, userAmount);
-        }
-
-        // Give user1 some dStable for testing redemption by using the Issuer
-        // The proper way to get dStable tokens is to issue them using collateral
-        const dstableAmount = hre.ethers.parseUnits(
-          "1000",
-          dstableInfo.decimals
-        );
-
-        // First, we need to approve the issuer to use our collateral
         await result.contract
           .connect(await hre.ethers.getSigner(user1))
           .approve(await issuerContract.getAddress(), userAmount);
 
-        // Calculate a min amount that's safe to receive
-        const minAmount = dstableAmount / 2n; // Just being conservative
+        // Calculate minimum dStable amount to receive (with 5% slippage)
+        const expectedDstableAmount =
+          await issuerContract.baseValueToDstableAmount(
+            await collateralVaultContract.assetValueFromAmount(
+              userAmount,
+              result.tokenInfo.address
+            )
+          );
+        const minAmount = (expectedDstableAmount * 95n) / 100n; // 5% slippage
 
         // Issue dStable tokens to user1 using collateral - use the full approved amount
         await issuerContract
@@ -210,7 +189,7 @@ dstableConfigs.forEach((config) => {
 
     describe("Basic redemption", () => {
       // Test redemption for each collateral type
-      config.collateralSymbols.forEach((collateralSymbol) => {
+      config.peggedCollaterals.forEach((collateralSymbol) => {
         it(`redeems ${config.symbol} for ${collateralSymbol}`, async function () {
           const collateralContract = collateralContracts.get(
             collateralSymbol

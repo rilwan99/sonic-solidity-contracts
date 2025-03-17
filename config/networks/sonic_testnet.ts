@@ -2,6 +2,7 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
 
 import { ORACLE_AGGREGATOR_PRICE_DECIMALS } from "../../typescript/oracle_aggregator/constants";
 import { Config } from "../types";
+import { ZeroAddress } from "ethers";
 
 /**
  * Get the configuration for the network
@@ -10,7 +11,7 @@ import { Config } from "../types";
  * @returns The configuration for the network
  */
 export async function getConfig(
-  _hre: HardhatRuntimeEnvironment,
+  _hre: HardhatRuntimeEnvironment
 ): Promise<Config> {
   const dUSDDeployment = await _hre.deployments.getOrNull("dUSD");
   const dSDeployment = await _hre.deployments.getOrNull("dS");
@@ -21,13 +22,24 @@ export async function getConfig(
       dS: emptyStringIfUndefined(dSDeployment?.address),
       wS: "0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38",
     },
-    oracleAggregator: {
-      hardDStablePeg: 10 ** ORACLE_AGGREGATOR_PRICE_DECIMALS,
-      priceDecimals: ORACLE_AGGREGATOR_PRICE_DECIMALS,
-      api3OracleAssets: {
-        plainApi3OracleWrappers: {},
-        api3OracleWrappersWithThresholding: {},
-        compositeApi3OracleWrappersWithThresholding: {},
+    dStables: {
+      dUSD: {
+        collaterals: [],
+      },
+      dS: {
+        collaterals: [],
+      },
+    },
+    oracleAggregators: {
+      USD: {
+        hardDStablePeg: 10n ** BigInt(ORACLE_AGGREGATOR_PRICE_DECIMALS),
+        baseCurrency: ZeroAddress, // Note that USD is represented by the zero address, per Aave's convention
+        priceDecimals: ORACLE_AGGREGATOR_PRICE_DECIMALS,
+        api3OracleAssets: {
+          plainApi3OracleWrappers: {},
+          api3OracleWrappersWithThresholding: {},
+          compositeApi3OracleWrappersWithThresholding: {},
+        },
       },
     },
   };

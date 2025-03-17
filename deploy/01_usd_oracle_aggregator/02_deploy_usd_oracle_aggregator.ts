@@ -2,16 +2,20 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
 
 import { getConfig } from "../../config/config";
-import { ORACLE_AGGREGATOR_ID } from "../../typescript/deploy-ids";
+import { USD_ORACLE_AGGREGATOR_ID } from "../../typescript/deploy-ids";
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer } = await hre.getNamedAccounts();
 
   const config = await getConfig(hre);
 
-  await hre.deployments.deploy(ORACLE_AGGREGATOR_ID, {
+  // Deploy the USD-specific OracleAggregator
+  await hre.deployments.deploy(USD_ORACLE_AGGREGATOR_ID, {
     from: deployer,
-    args: [BigInt(10) ** BigInt(config.oracleAggregator.priceDecimals)],
+    args: [
+      config.oracleAggregators.USD.baseCurrency, // USD as base currency (address 0)
+      BigInt(10) ** BigInt(config.oracleAggregators.USD.priceDecimals),
+    ],
     contract: "OracleAggregator",
     autoMine: true,
     log: false,
@@ -22,8 +26,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   return true;
 };
 
-func.tags = ["oracle-aggregator"];
+func.tags = ["usd-oracle", "oracle-aggregator", "usd-oracle-aggregator"];
 func.dependencies = [];
-func.id = ORACLE_AGGREGATOR_ID;
+func.id = "deploy-usd-oracle-aggregator";
 
 export default func;

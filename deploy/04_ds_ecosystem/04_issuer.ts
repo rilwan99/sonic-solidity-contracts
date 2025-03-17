@@ -3,31 +3,32 @@ import { DeployFunction } from "hardhat-deploy/types";
 
 import { getConfig } from "../../config/config";
 import {
-  DUSD_AMO_MANAGER_ID,
-  DUSD_COLLATERAL_VAULT_CONTRACT_ID,
-  DUSD_ISSUER_CONTRACT_ID,
-  ORACLE_AGGREGATOR_ID,
+  DS_AMO_MANAGER_ID,
+  DS_COLLATERAL_VAULT_CONTRACT_ID,
+  DS_ISSUER_CONTRACT_ID,
+  S_ORACLE_AGGREGATOR_ID,
 } from "../../typescript/deploy-ids";
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer } = await hre.getNamedAccounts();
 
   // Get deployed addresses
-  const { address: oracleAggregatorAddress } =
-    await hre.deployments.get(ORACLE_AGGREGATOR_ID);
+  const { address: oracleAggregatorAddress } = await hre.deployments.get(
+    S_ORACLE_AGGREGATOR_ID
+  );
 
   const { address: collateralVaultAddress } = await hre.deployments.get(
-    DUSD_COLLATERAL_VAULT_CONTRACT_ID,
+    DS_COLLATERAL_VAULT_CONTRACT_ID
   );
   const { tokenAddresses } = await getConfig(hre);
   const { address: amoManagerAddress } =
-    await hre.deployments.get(DUSD_AMO_MANAGER_ID);
+    await hre.deployments.get(DS_AMO_MANAGER_ID);
 
-  await hre.deployments.deploy(DUSD_ISSUER_CONTRACT_ID, {
+  await hre.deployments.deploy(DS_ISSUER_CONTRACT_ID, {
     from: deployer,
     args: [
       collateralVaultAddress,
-      tokenAddresses.dUSD,
+      tokenAddresses.dS,
       oracleAggregatorAddress,
       amoManagerAddress,
     ],
@@ -38,32 +39,32 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // Get the deployed Issuer contract address
   const { address: issuerAddress } = await hre.deployments.get(
-    DUSD_ISSUER_CONTRACT_ID,
+    DS_ISSUER_CONTRACT_ID
   );
 
-  // Grant MINTER_ROLE to the Issuer contract so it can mint dUSD
-  const dusdContract = await hre.ethers.getContractAt(
+  // Grant MINTER_ROLE to the Issuer contract so it can mint dS
+  const dsContract = await hre.ethers.getContractAt(
     "ERC20StablecoinUpgradeable",
-    tokenAddresses.dUSD,
+    tokenAddresses.dS
   );
 
-  const MINTER_ROLE = await dusdContract.MINTER_ROLE();
+  const MINTER_ROLE = await dsContract.MINTER_ROLE();
 
-  await dusdContract.grantRole(MINTER_ROLE, issuerAddress);
+  await dsContract.grantRole(MINTER_ROLE, issuerAddress);
   console.log(`Granted MINTER_ROLE to Issuer contract at ${issuerAddress}`);
 
-  console.log(`☯️ ${__filename.split("/").slice(-2).join("/")}: ✅`);
+  console.log(`≻ ${__filename.split("/").slice(-2).join("/")}: ✅`);
 
   return true;
 };
 
-func.id = `dUSD:${DUSD_ISSUER_CONTRACT_ID}`;
-func.tags = ["dusd"];
+func.id = `dS:${DS_ISSUER_CONTRACT_ID}`;
+func.tags = ["ds"];
 func.dependencies = [
-  DUSD_COLLATERAL_VAULT_CONTRACT_ID,
-  "dUSD",
-  ORACLE_AGGREGATOR_ID,
-  DUSD_AMO_MANAGER_ID,
+  DS_COLLATERAL_VAULT_CONTRACT_ID,
+  "dS",
+  "s-oracle",
+  DS_AMO_MANAGER_ID,
 ];
 
 export default func;

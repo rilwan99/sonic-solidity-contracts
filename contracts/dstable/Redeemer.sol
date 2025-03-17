@@ -31,7 +31,7 @@ contract Redeemer is AccessControl, OracleAware {
     uint8 public immutable dstableDecimals;
     CollateralVault public collateralVault;
 
-    uint256 public immutable USD_UNIT;
+    uint256 public immutable BASE_UNIT;
 
     /* Roles */
 
@@ -57,7 +57,7 @@ contract Redeemer is AccessControl, OracleAware {
         collateralVault = CollateralVault(_collateralVault);
         dstable = IMintableERC20(_dstable);
         dstableDecimals = dstable.decimals();
-        USD_UNIT = _oracle.BASE_CURRENCY_UNIT();
+        BASE_UNIT = _oracle.BASE_CURRENCY_UNIT();
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         grantRole(REDEMPTION_MANAGER_ROLE, msg.sender);
@@ -85,7 +85,7 @@ contract Redeemer is AccessControl, OracleAware {
         dstable.burn(dstableAmount);
 
         // Calculate collateral amount
-        uint256 dstableValue = dstableAmountToUsdValue(dstableAmount);
+        uint256 dstableValue = dstableAmountToBaseValue(dstableAmount);
         uint256 collateralAmount = collateralVault.assetAmountFromValue(
             dstableValue,
             collateralAsset
@@ -103,14 +103,14 @@ contract Redeemer is AccessControl, OracleAware {
     }
 
     /**
-     * @notice Converts an amount of dStable tokens to its equivalent USD value
+     * @notice Converts an amount of dStable tokens to its equivalent base value
      * @param dstableAmount The amount of dStable tokens to convert
-     * @return The equivalent USD value
+     * @return The equivalent base value
      */
-    function dstableAmountToUsdValue(
+    function dstableAmountToBaseValue(
         uint256 dstableAmount
     ) public view returns (uint256) {
-        return (dstableAmount * USD_UNIT) / (10 ** dstableDecimals);
+        return (dstableAmount * BASE_UNIT) / (10 ** dstableDecimals);
     }
 
     /* Admin */
