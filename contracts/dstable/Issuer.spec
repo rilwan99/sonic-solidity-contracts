@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 
 // Import necessary methods from the Certora Prover library
+using Issuer as issuer;
+
 methods {
     // Core state variables
     function dstable() external returns (address) envfree;
@@ -25,6 +27,9 @@ methods {
     
     // Access control
     function hasRole(bytes32, address) external returns (bool) envfree;
+    function DEFAULT_ADMIN_ROLE() external returns (bytes32) envfree;
+    function AMO_MANAGER_ROLE() external returns (bytes32) envfree;
+    function INCENTIVES_MANAGER_ROLE() external returns (bytes32) envfree;
     
     // External contract interactions - use concrete contract implementation
     function _.mint(address, uint256) external => NONDET;
@@ -89,8 +94,8 @@ rule issueUsingExcessCollateralFailsWithInsufficientCollateral(address receiver,
 rule increaseAmoSupplyDoesNotAffectCirculatingDstable(uint256 dstableAmount) {
     env e;
     
-    // Use literal keccak256 hash for AMO_MANAGER_ROLE
-    require hasRole(keccak256("AMO_MANAGER_ROLE"), e.msg.sender);
+    // Use contract's role constant
+    require !hasRole(AMO_MANAGER_ROLE(), e.msg.sender);
     
     uint256 beforeCirculating = circulatingDstable();
     increaseAmoSupply(e, dstableAmount);
@@ -104,9 +109,8 @@ rule increaseAmoSupplyDoesNotAffectCirculatingDstable(uint256 dstableAmount) {
 rule onlyAdminCanSetAmoManager(address newAmoManager) {
     env e;
     
-    // Use the literal zero bytes for DEFAULT_ADMIN_ROLE
-    bytes32 adminRole = 0x0000000000000000000000000000000000000000000000000000000000000000;
-    require !hasRole(adminRole, e.msg.sender);
+    // Use contract's role constant
+    require !hasRole(DEFAULT_ADMIN_ROLE(), e.msg.sender);
     
     setAmoManager@withrevert(e, newAmoManager);
     assert lastReverted, 
@@ -117,9 +121,8 @@ rule onlyAdminCanSetAmoManager(address newAmoManager) {
 rule onlyAdminCanSetCollateralVault(address newCollateralVault) {
     env e;
     
-    // Use the literal zero bytes for DEFAULT_ADMIN_ROLE
-    bytes32 adminRole = 0x0000000000000000000000000000000000000000000000000000000000000000;
-    require !hasRole(adminRole, e.msg.sender);
+    // Use contract's role constant
+    require !hasRole(DEFAULT_ADMIN_ROLE(), e.msg.sender);
     
     setCollateralVault@withrevert(e, newCollateralVault);
     assert lastReverted, 
@@ -150,8 +153,8 @@ rule circulatingDstableCalculationCorrect() {
 rule onlyIncentivesManagerCanIssueUsingExcessCollateral(address receiver, uint256 amount) {
     env e;
     
-    // Use literal keccak256 hash for INCENTIVES_MANAGER_ROLE
-    require !hasRole(keccak256("INCENTIVES_MANAGER_ROLE"), e.msg.sender);
+    // Use contract's role constant
+    require !hasRole(INCENTIVES_MANAGER_ROLE(), e.msg.sender);
     
     issueUsingExcessCollateral@withrevert(e, receiver, amount);
     assert lastReverted, 
@@ -162,8 +165,8 @@ rule onlyIncentivesManagerCanIssueUsingExcessCollateral(address receiver, uint25
 rule onlyAmoManagerCanIncreaseAmoSupply(uint256 amount) {
     env e;
     
-    // Use literal keccak256 hash for AMO_MANAGER_ROLE
-    require !hasRole(keccak256("AMO_MANAGER_ROLE"), e.msg.sender);
+    // Use contract's role constant
+    require !hasRole(AMO_MANAGER_ROLE(), e.msg.sender);
     
     increaseAmoSupply@withrevert(e, amount);
     assert lastReverted, 
