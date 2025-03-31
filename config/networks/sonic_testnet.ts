@@ -93,6 +93,9 @@ export async function getConfig(
       dS: emptyStringIfUndefined(dSDeployment?.address),
       wS: wSAddress,
     },
+    walletAddresses: {
+      governanceMultisig: "0xd2f775Ff2cD41bfe43C7A8c016eD10393553fe44", // Actually just the testnet deployer address
+    },
     dStables: {
       dUSD: {
         collaterals: [
@@ -210,6 +213,15 @@ export async function getConfig(
         },
       },
     },
+    dLend: {
+      providerID: 1, // Arbitrary as long as we don't repeat
+      flashLoanPremium: {
+        total: 0.0005e4, // 0.05%
+        protocol: 0.0004e4, // 0.04%
+      },
+      rateStrategies: [],
+      reservesConfig: {},
+    },
   };
 }
 
@@ -220,5 +232,5 @@ export async function getConfig(
  * @returns An empty string if the value is undefined, otherwise the value itself
  */
 function emptyStringIfUndefined(value: string | undefined): string {
-  return value ?? "";
+  return value || "";
 }
