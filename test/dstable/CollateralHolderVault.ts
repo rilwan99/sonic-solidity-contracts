@@ -17,10 +17,6 @@ import {
   DS_CONFIG,
   DStableFixtureConfig,
 } from "./fixtures";
-import {
-  USD_ORACLE_AGGREGATOR_ID,
-  S_ORACLE_AGGREGATOR_ID,
-} from "../../typescript/deploy-ids";
 
 // Run tests for each dStable configuration
 const dstableConfigs: DStableFixtureConfig[] = [DUSD_CONFIG, DS_CONFIG];
@@ -53,12 +49,8 @@ dstableConfigs.forEach((config) => {
       );
 
       // Get the oracle aggregator based on the dStable configuration
-      const oracleAggregatorId =
-        config.symbol === "dUSD"
-          ? USD_ORACLE_AGGREGATOR_ID
-          : S_ORACLE_AGGREGATOR_ID;
       const oracleAggregatorAddress = (
-        await hre.deployments.get(oracleAggregatorId)
+        await hre.deployments.get(config.oracleAggregatorId)
       ).address;
       oracleAggregatorContract = await hre.ethers.getContractAt(
         "OracleAggregator",

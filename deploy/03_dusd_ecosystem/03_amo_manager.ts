@@ -5,6 +5,7 @@ import { getConfig } from "../../config/config";
 import {
   DUSD_AMO_MANAGER_ID,
   DUSD_COLLATERAL_VAULT_CONTRACT_ID,
+  DUSD_TOKEN_ID,
   USD_ORACLE_AGGREGATOR_ID,
 } from "../../typescript/deploy-ids";
 
@@ -13,11 +14,11 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { tokenAddresses } = await getConfig(hre);
 
   const { address: collateralVaultAddress } = await hre.deployments.get(
-    DUSD_COLLATERAL_VAULT_CONTRACT_ID
+    DUSD_COLLATERAL_VAULT_CONTRACT_ID,
   );
 
   const { address: oracleAddress } = await hre.deployments.get(
-    USD_ORACLE_AGGREGATOR_ID
+    USD_ORACLE_AGGREGATOR_ID,
   );
 
   await hre.deployments.deploy(DUSD_AMO_MANAGER_ID, {
@@ -33,8 +34,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   return true;
 };
 
-func.id = `dUSD:${DUSD_AMO_MANAGER_ID}`;
+func.id = DUSD_AMO_MANAGER_ID;
 func.tags = ["dusd"];
-func.dependencies = ["dUSD", DUSD_COLLATERAL_VAULT_CONTRACT_ID];
+func.dependencies = [DUSD_TOKEN_ID, DUSD_COLLATERAL_VAULT_CONTRACT_ID];
 
 export default func;

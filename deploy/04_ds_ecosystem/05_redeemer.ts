@@ -5,6 +5,7 @@ import { getConfig } from "../../config/config";
 import {
   DS_COLLATERAL_VAULT_CONTRACT_ID,
   DS_REDEEMER_CONTRACT_ID,
+  DS_TOKEN_ID,
   S_ORACLE_AGGREGATOR_ID,
 } from "../../typescript/deploy-ids";
 
@@ -13,16 +14,16 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // Get deployed addresses
   const { address: oracleAggregatorAddress } = await hre.deployments.get(
-    S_ORACLE_AGGREGATOR_ID
+    S_ORACLE_AGGREGATOR_ID,
   );
 
   const { address: collateralVaultAddress } = await hre.deployments.get(
-    DS_COLLATERAL_VAULT_CONTRACT_ID
+    DS_COLLATERAL_VAULT_CONTRACT_ID,
   );
   const collateralVault = await hre.ethers.getContractAt(
     "CollateralHolderVault",
     collateralVaultAddress,
-    await hre.ethers.getSigner(deployer)
+    await hre.ethers.getSigner(deployer),
   );
   const { tokenAddresses } = await getConfig(hre);
 
@@ -37,7 +38,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   console.log("Allowing Redeemer to withdraw collateral");
   await collateralVault.grantRole(
     await collateralVault.COLLATERAL_WITHDRAWER_ROLE(),
-    deployment.address
+    deployment.address,
   );
 
   console.log(`≻ ${__filename.split("/").slice(-2).join("/")}: ✅`);
@@ -45,8 +46,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   return true;
 };
 
-func.id = `dS:${DS_REDEEMER_CONTRACT_ID}`;
+func.id = DS_REDEEMER_CONTRACT_ID;
 func.tags = ["ds"];
-func.dependencies = [DS_COLLATERAL_VAULT_CONTRACT_ID, "dS", "s-oracle"];
+func.dependencies = [DS_COLLATERAL_VAULT_CONTRACT_ID, DS_TOKEN_ID, "s-oracle"];
 
 export default func;

@@ -4,17 +4,33 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { TestERC20, TestMintableERC20 } from "../../typechain-types";
 
 /**
+ * List of dStable symbols that use TestMintableERC20
+ */
+export const DSTABLE_SYMBOLS = ["dUSD", "dS"] as const;
+export type DStableSymbol = (typeof DSTABLE_SYMBOLS)[number];
+
+/**
+ * Check if a symbol is a dStable symbol
+ *
+ * @param symbol - The symbol to check
+ * @returns True if the symbol is a dStable symbol, false otherwise
+ */
+function isDStableSymbol(symbol: string): symbol is DStableSymbol {
+  return DSTABLE_SYMBOLS.includes(symbol as DStableSymbol);
+}
+
+/**
  * Get the token contract for the given symbol
  *
  * @param hre Hardhat Runtime Environment
  * @param callerAddress Caller address
  * @param symbol Token symbol
- * @returns The TestMintableERC20 contract instance and token info for dUSD
+ * @returns The TestMintableERC20 contract instance and token info for dStables
  */
 export async function getTokenContractForSymbol(
   hre: HardhatRuntimeEnvironment,
   callerAddress: string,
-  symbol: "dUSD" | "dS",
+  symbol: DStableSymbol,
 ): Promise<{ contract: TestMintableERC20; tokenInfo: TokenInfo }>;
 
 /**
@@ -23,7 +39,7 @@ export async function getTokenContractForSymbol(
  * @param hre Hardhat Runtime Environment
  * @param callerAddress Caller address
  * @param symbol Token symbol
- * @returns The TestERC20 contract instance and token info for non-dUSD tokens
+ * @returns The TestERC20 contract instance and token info for non-dStable tokens
  */
 export async function getTokenContractForSymbol(
   hre: HardhatRuntimeEnvironment,
@@ -54,7 +70,7 @@ export async function getTokenContractForSymbol(
 
   const inputTokenInfo = await fetchTokenInfo(hre, tokenaddress);
 
-  if (inputTokenInfo.symbol === "dUSD") {
+  if (isDStableSymbol(inputTokenInfo.symbol)) {
     const contract = await ethers.getContractAt(
       "TestMintableERC20",
       tokenaddress,
@@ -132,4 +148,43 @@ async function fetchTokenInfoImplementation(
     name: await tokenContract.name(),
     decimals: Number(await tokenContract.decimals()),
   };
+}
+
+/**
+ * Get the token contract for the given address
+ *
+ * @param hre Hardhat Runtime Environment
+ * @param callerAddress Caller address
+ * @param tokenAddress Token address
+ * @returns The token contract instance and token info
+ */
+export async function getTokenContractForAddress(
+  hre: HardhatRuntimeEnvironment,
+  callerAddress: string,
+  tokenAddress: string,
+): Promise<{ contract: TestERC20 | TestMintableERC20; tokenInfo: TokenInfo }> {
+  const signer = await ethers.getSigner(callerAddress);
+  const tokenInfo = await fetchTokenInfo(hre, tokenAddress);
+
+  if (isDStableSymbol(tokenInfo.symbol)) {
+    const contract = await ethers.getContractAt(
+      "TestMintableERC20",
+      tokenAddress,
+      signer,
+    );
+    return {
+      contract,
+      tokenInfo,
+    };
+  } else {
+    const contract = await ethers.getContractAt(
+      "TestERC20",
+      tokenAddress,
+      signer,
+    );
+    return {
+      contract,
+      tokenInfo,
+    };
+  }
 }

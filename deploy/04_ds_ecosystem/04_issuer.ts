@@ -6,6 +6,7 @@ import {
   DS_AMO_MANAGER_ID,
   DS_COLLATERAL_VAULT_CONTRACT_ID,
   DS_ISSUER_CONTRACT_ID,
+  DS_TOKEN_ID,
   S_ORACLE_AGGREGATOR_ID,
 } from "../../typescript/deploy-ids";
 
@@ -14,11 +15,11 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // Get deployed addresses
   const { address: oracleAggregatorAddress } = await hre.deployments.get(
-    S_ORACLE_AGGREGATOR_ID
+    S_ORACLE_AGGREGATOR_ID,
   );
 
   const { address: collateralVaultAddress } = await hre.deployments.get(
-    DS_COLLATERAL_VAULT_CONTRACT_ID
+    DS_COLLATERAL_VAULT_CONTRACT_ID,
   );
   const { tokenAddresses } = await getConfig(hre);
   const { address: amoManagerAddress } =
@@ -39,13 +40,13 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // Get the deployed Issuer contract address
   const { address: issuerAddress } = await hre.deployments.get(
-    DS_ISSUER_CONTRACT_ID
+    DS_ISSUER_CONTRACT_ID,
   );
 
   // Grant MINTER_ROLE to the Issuer contract so it can mint dS
   const dsContract = await hre.ethers.getContractAt(
     "ERC20StablecoinUpgradeable",
-    tokenAddresses.dS
+    tokenAddresses.dS,
   );
 
   const MINTER_ROLE = await dsContract.MINTER_ROLE();
@@ -58,11 +59,11 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   return true;
 };
 
-func.id = `dS:${DS_ISSUER_CONTRACT_ID}`;
+func.id = DS_ISSUER_CONTRACT_ID;
 func.tags = ["ds"];
 func.dependencies = [
   DS_COLLATERAL_VAULT_CONTRACT_ID,
-  "dS",
+  DS_TOKEN_ID,
   "s-oracle",
   DS_AMO_MANAGER_ID,
 ];
