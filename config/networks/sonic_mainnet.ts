@@ -22,6 +22,8 @@ export async function getConfig(
       dUSD: emptyStringIfUndefined(dUSDDeployment?.address),
       dS: emptyStringIfUndefined(dSDeployment?.address),
       wS: wSAddress,
+      stS: "",
+      sfrxUSD: "",
     },
     walletAddresses: {
       governanceMultisig: "", // TODO fill out
@@ -40,6 +42,7 @@ export async function getConfig(
         hardDStablePeg: 10n ** BigInt(ORACLE_AGGREGATOR_PRICE_DECIMALS),
         priceDecimals: ORACLE_AGGREGATOR_PRICE_DECIMALS,
         api3OracleAssets: {
+          // TODO don't forget to add ALL the dLEND markets, even the S ones!
           plainApi3OracleWrappers: {},
           api3OracleWrappersWithThresholding: {},
           compositeApi3OracleWrappersWithThresholding: {},
