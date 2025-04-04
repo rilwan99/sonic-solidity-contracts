@@ -80,15 +80,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     signer,
   );
 
-  const deployerAddress = await signer.getAddress();
-  console.log("Deployer address:", deployerAddress);
-
-  const isPoolAdmin = await aclManager.isPoolAdmin(deployerAddress);
-  console.log("Is deployer pool admin?", isPoolAdmin);
-
-  const isRiskAdmin = await aclManager.isRiskAdmin(deployerAddress);
-  console.log("Is deployer risk admin?", isRiskAdmin);
-
   const poolConfiguratorAddress =
     await addressesProviderContract.getPoolConfigurator();
   const poolConfiguratorContract = await hre.ethers.getContractAt(
@@ -264,6 +255,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       abi: (await hre.deployments.get(VARIABLE_DEBT_TOKEN_IMPL_ID)).abi,
       address: tokenData.variableDebtTokenAddress,
     });
+
+    console.log(`Configured dLEND reserve: ${symbol}`);
   }
 
   console.log(`🏦 ${__filename.split("/").slice(-2).join("/")}: ✅`);

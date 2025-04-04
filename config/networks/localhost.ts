@@ -42,6 +42,11 @@ export async function getConfig(
   // Get mock oracle deployments
   const mockOracleDeployments: Record<string, string> = {};
   const mockOracleDeploymentsAll = await _hre.deployments.all();
+
+  // Deployed mocks
+  const odosRouterDeployment =
+    await _hre.deployments.getOrNull("OdosRouterV2Mock");
+
   // Get the named accounts
   const { user1 } = await _hre.getNamedAccounts();
 
@@ -283,6 +288,9 @@ export async function getConfig(
         stS: strategyYieldBearingStablecoin,
         sfrxUSD: strategyYieldBearingStablecoin,
       },
+    },
+    odos: {
+      router: odosRouterDeployment?.address || "",
     },
   };
 }

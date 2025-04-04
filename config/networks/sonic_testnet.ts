@@ -6,6 +6,16 @@ import {
   ORACLE_AGGREGATOR_BASE_CURRENCY_UNIT,
   ORACLE_AGGREGATOR_PRICE_DECIMALS,
 } from "../../typescript/oracle_aggregator/constants";
+import {
+  rateStrategyHighLiquidityStable,
+  rateStrategyHighLiquidityVolatile,
+  rateStrategyMediumLiquidityStable,
+  rateStrategyMediumLiquidityVolatile,
+} from "../dlend/interest-rate-strategies";
+import {
+  strategyDStable,
+  strategyYieldBearingStablecoin,
+} from "../dlend/reserves-params";
 import { Config } from "../types";
 
 const wSAddress = "0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38";
@@ -33,6 +43,10 @@ export async function getConfig(
   // Get mock oracle deployments
   const mockOracleDeployments: Record<string, string> = {};
   const mockOracleDeploymentsAll = await _hre.deployments.all();
+
+  // Deployed mocks
+  const odosRouterDeployment =
+    await _hre.deployments.getOrNull("OdosRouterV2Mock");
 
   for (const [name, deployment] of Object.entries(mockOracleDeploymentsAll)) {
     if (name.startsWith("MockAPI3OracleAlwaysAlive_")) {
@@ -252,8 +266,21 @@ export async function getConfig(
         total: 0.0005e4, // 0.05%
         protocol: 0.0004e4, // 0.04%
       },
-      rateStrategies: [],
-      reservesConfig: {},
+      rateStrategies: [
+        rateStrategyHighLiquidityVolatile,
+        rateStrategyMediumLiquidityVolatile,
+        rateStrategyHighLiquidityStable,
+        rateStrategyMediumLiquidityStable,
+      ],
+      reservesConfig: {
+        dUSD: strategyDStable,
+        dS: strategyDStable,
+        stS: strategyYieldBearingStablecoin,
+        sfrxUSD: strategyYieldBearingStablecoin,
+      },
+    },
+    odos: {
+      router: odosRouterDeployment?.address || "",
     },
   };
 }

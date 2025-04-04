@@ -247,7 +247,7 @@ contract UiPoolDataProviderV3 is IUiPoolDataProviderV3 {
             priceOracle.getAssetPrice(wethAddress)
         );
 
-        // Set decimals (typically 8 for USD price feeds)
+        // Set decimals (The Aave ecosystem uses 8 decimals for the base currency)
         baseCurrencyInfo.networkBaseTokenPriceDecimals = 8;
 
         try oracle.BASE_CURRENCY_UNIT() returns (uint256 baseCurrencyUnit) {

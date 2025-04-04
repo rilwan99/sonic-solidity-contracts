@@ -59,6 +59,9 @@ export async function getConfig(
       rateStrategies: [],
       reservesConfig: {},
     },
+    odos: {
+      router: "", // TODO fill in
+    },
   };
 }
 
