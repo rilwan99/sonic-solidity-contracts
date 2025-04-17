@@ -222,12 +222,13 @@ export async function getConfig(
                 }
               : {}),
             ...(wstkscUSDDeployment?.address &&
-            mockOracleNameToAddress["wstkscUSD_USD"]
+            mockOracleNameToAddress["wstkscUSD_scUSD"] &&
+            mockOracleNameToAddress["scUSD_USD"]
               ? {
                   [wstkscUSDDeployment.address]: {
                     feedAsset: wstkscUSDDeployment.address,
-                    feed1: mockOracleNameToAddress["wstkscUSD_scUSD"], // Changed from proxy1
-                    feed2: mockOracleNameToAddress["scUSD_USD"], // Changed from proxy2
+                    feed1: mockOracleNameToAddress["wstkscUSD_scUSD"],
+                    feed2: mockOracleNameToAddress["scUSD_USD"],
                     lowerThresholdInBase1: 0n,
                     fixedPriceInBase1: 0n,
                     lowerThresholdInBase2: 0n,
