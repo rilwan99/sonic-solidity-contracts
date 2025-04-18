@@ -13,8 +13,11 @@ import {
   rateStrategyMediumLiquidityVolatile,
 } from "../dlend/interest-rate-strategies";
 import {
-  strategyDStable,
-  strategyYieldBearingStablecoin,
+  strategyDS,
+  strategyDUSD,
+  strategySfrxUSD,
+  strategyStS,
+  strategyWstkscUSD,
 } from "../dlend/reserves-params";
 import { Config } from "../types";
 
@@ -141,6 +144,7 @@ export async function getConfig(
       wS: emptyStringIfUndefined(wSTokenDeployment?.address),
       sfrxUSD: emptyStringIfUndefined(sfrxUSDDeployment?.address), // Used by dLEND
       stS: emptyStringIfUndefined(stSTokenDeployment?.address), // Used by dLEND
+      wstkscUSD: emptyStringIfUndefined(wstkscUSDDeployment?.address), // Used by dLEND
     },
     walletAddresses: {
       governanceMultisig: user1,
@@ -344,11 +348,11 @@ export async function getConfig(
         rateStrategyMediumLiquidityStable,
       ],
       reservesConfig: {
-        dUSD: strategyDStable,
-        dS: strategyDStable,
-        stS: strategyYieldBearingStablecoin,
-        sfrxUSD: strategyYieldBearingStablecoin,
-        wstkscUSD: strategyYieldBearingStablecoin,
+        dUSD: strategyDUSD,
+        dS: strategyDS,
+        stS: strategyStS,
+        sfrxUSD: strategySfrxUSD,
+        wstkscUSD: strategyWstkscUSD,
       },
     },
     odos: {
