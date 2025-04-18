@@ -148,6 +148,7 @@ export async function getConfig(
     },
     walletAddresses: {
       governanceMultisig: user1,
+      incentivesVault: user1,
     },
     dStables: {
       dUSD: {

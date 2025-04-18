@@ -54,6 +54,7 @@ export async function getConfig(
     },
     walletAddresses: {
       governanceMultisig: "0xE83c188a7BE46B90715C757A06cF917175f30262", // Created via Safe
+      incentivesVault: "0x4B4B5cC616be4cd1947B93f2304d36b3e80D3ef6", // TODO: Add incentives vault address
     },
     dStables: {
       dUSD: {
