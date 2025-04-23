@@ -13,7 +13,7 @@ import {SafeCast} from "contracts/dlend/core/dependencies/openzeppelin/contracts
 import {Initializable} from "contracts/dlend/core/dependencies/openzeppelin/upgradeability/Initializable.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {IERC20} from "contracts/dlend/core/dependencies/openzeppelin/contracts/IERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20WithPermit} from "contracts/dlend/core/interfaces/IERC20WithPermit.sol";
 // --- Local imports ---
 import {IStaticATokenLM} from "./interfaces/IStaticATokenLM.sol";
@@ -554,7 +554,8 @@ contract StaticATokenLM is ERC20, IStaticATokenLM, IERC4626 {
 
         if (depositToAave) {
             address cachedATokenUnderlying = _aTokenUnderlying;
-            IERC20(cachedATokenUnderlying).safeTransferFrom(
+            SafeERC20.safeTransferFrom(
+                IERC20(cachedATokenUnderlying),
                 depositor,
                 address(this),
                 assets
@@ -809,13 +810,12 @@ contract StaticATokenLM is ERC20, IStaticATokenLM, IERC4626 {
         uint256 startIndex = getCurrentRewardsIndex(reward);
 
         _rewardTokens.push(reward);
-        _startIndex[reward] = RewardIndexCache(true, startIndex.toUint240());
+        _startIndex[reward] = RewardIndexCache(true, uint240(startIndex));
 
         emit RewardTokenRegistered(reward, startIndex);
     }
 
     /**
-     * Copy of https://github.com/aave/aave-v3-core/blob/29ff9b9f89af7cd8255231bc5faf26c3ce0fb7ce/contracts/protocol/libraries/logic/ReserveLogic.sol#L47 with memory instead of calldata
      * @notice Returns the ongoing normalized income for the reserve.
      * @dev A value of 1e27 means there is no income. As time passes, the income is accrued
      * @dev A value of 2*1e27 means for each unit of asset one unit of income has been accrued
