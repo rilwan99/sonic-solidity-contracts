@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity ^0.8.20;
 
-import {IPool} from "../../../dlend/core/interfaces/IPool.sol";
-import {IAaveIncentivesController} from "../../../dlend/core/interfaces/IAaveIncentivesController.sol";
+import {IPool} from "contracts/dlend/core/interfaces/IPool.sol";
+import {IAaveIncentivesController} from "contracts/dlend/core/interfaces/IAaveIncentivesController.sol";
 
 /**
  * @title IInitializableStaticATokenLM

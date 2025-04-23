@@ -34,7 +34,7 @@ interface IERC4626 {
     function asset() external view returns (address assetTokenAddress);
 
     /**
-     * @dev Returns the total amount of the underlying asset that is “managed” by Vault.
+     * @dev Returns the total amount of the underlying asset that is "managed" by Vault.
      *
      * - SHOULD include any compounding that occurs from yield.
      * - MUST be inclusive of any fees that are charged against assets in the Vault.
@@ -51,8 +51,8 @@ interface IERC4626 {
      * - MUST NOT reflect slippage or other on-chain conditions, when performing the actual exchange.
      * - MUST NOT revert.
      *
-     * NOTE: This calculation MAY NOT reflect the “per-user” price-per-share, and instead should reflect the
-     * “average-user’s” price-per-share, meaning what the average user should expect to see when exchanging to and
+     * NOTE: This calculation MAY NOT reflect the "per-user" price-per-share, and instead should reflect the
+     * "average-user's" price-per-share, meaning what the average user should expect to see when exchanging to and
      * from.
      */
     function convertToShares(
@@ -68,8 +68,8 @@ interface IERC4626 {
      * - MUST NOT reflect slippage or other on-chain conditions, when performing the actual exchange.
      * - MUST NOT revert unless due to integer overflow caused by an unreasonably large input.
      *
-     * NOTE: This calculation MAY NOT reflect the “per-user” price-per-share, and instead should reflect the
-     * “average-user’s” price-per-share, meaning what the average user should expect to see when exchanging to and
+     * NOTE: This calculation MAY NOT reflect the "per-user" price-per-share, and instead should reflect the
+     * "average-user's" price-per-share, meaning what the average user should expect to see when exchanging to and
      * from.
      */
     function convertToAssets(
@@ -118,7 +118,7 @@ interface IERC4626 {
      * - MUST revert if all of assets cannot be deposited (due to deposit limit being reached, slippage, the user not
      *   approving enough underlying tokens to the Vault contract, etc).
      *
-     * NOTE: most implementations will require pre-approval of the Vault with the Vault’s underlying asset token.
+     * NOTE: most implementations will require pre-approval of the Vault with the Vault's underlying asset token.
      */
     function deposit(
         uint256 assets,
@@ -161,7 +161,7 @@ interface IERC4626 {
      * - MUST revert if all of shares cannot be minted (due to deposit limit being reached, slippage, the user not
      *   approving enough underlying tokens to the Vault contract, etc).
      *
-     * NOTE: most implementations will require pre-approval of the Vault with the Vault’s underlying asset token.
+     * NOTE: most implementations will require pre-approval of the Vault with the Vault's underlying asset token.
      */
     function mint(
         uint256 shares,

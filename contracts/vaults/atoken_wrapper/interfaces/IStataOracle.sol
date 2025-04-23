@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {IPool} from "../../../dlend/core/interfaces/IPool.sol";
-import {IAaveOracle} from "../../../dlend/core/interfaces/IAaveOracle.sol";
+import {IPool} from "contracts/dlend/core/interfaces/IPool.sol";
+import {IAaveOracle} from "contracts/dlend/core/interfaces/IAaveOracle.sol";
 
 interface IStataOracle {
     /**
