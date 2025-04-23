@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {IPool} from "contracts/dlend/core/interfaces/IPool.sol";
-import {IAaveIncentivesController} from "contracts/dlend/core/interfaces/IAaveIncentivesController.sol";
+import {IRewardsController} from "contracts/dlend/periphery/rewards/interfaces/IRewardsController.sol";
 
 /**
  * @title IInitializableStaticATokenLM
@@ -10,27 +10,5 @@ import {IAaveIncentivesController} from "contracts/dlend/core/interfaces/IAaveIn
  * @author Aave
  **/
 interface IInitializableStaticATokenLM {
-    /**
-     * @dev Emitted when a StaticATokenLM is initialized
-     * @param aToken The address of the underlying aToken (aWETH)
-     * @param staticATokenName The name of the Static aToken
-     * @param staticATokenSymbol The symbol of the Static aToken
-     **/
-    event Initialized(
-        address indexed aToken,
-        string staticATokenName,
-        string staticATokenSymbol
-    );
-
-    /**
-     * @dev Initializes the StaticATokenLM
-     * @param aToken The address of the underlying aToken (aWETH)
-     * @param staticATokenName The name of the Static aToken
-     * @param staticATokenSymbol The symbol of the Static aToken
-     */
-    function initialize(
-        address aToken,
-        string calldata staticATokenName,
-        string calldata staticATokenSymbol
-    ) external;
+    // Removed initialize function and Initialized event as contract is no longer upgradeable
 }

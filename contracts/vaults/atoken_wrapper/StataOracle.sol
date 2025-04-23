@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import {IPool} from "contracts/dlend/core/interfaces/IPool.sol";
 import {IPoolAddressesProvider} from "contracts/dlend/core/interfaces/IPoolAddressesProvider.sol";
 import {IAaveOracle} from "contracts/dlend/core/interfaces/IAaveOracle.sol";
-import {IERC20Metadata} from "contracts/dlend/core/dependencies/openzeppelin/contracts/IERC20Metadata.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IStaticATokenLM} from "./interfaces/IStaticATokenLM.sol";
 import {IStataOracle} from "./interfaces/IStataOracle.sol";
 import {IERC4626} from "./interfaces/IERC4626.sol";

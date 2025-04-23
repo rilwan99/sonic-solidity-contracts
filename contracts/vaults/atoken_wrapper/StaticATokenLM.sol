@@ -6,7 +6,7 @@ import {IPool} from "contracts/dlend/core/interfaces/IPool.sol";
 import {DataTypes} from "contracts/dlend/core/protocol/libraries/types/DataTypes.sol";
 import {ReserveConfiguration} from "contracts/dlend/core/protocol/libraries/configuration/ReserveConfiguration.sol";
 import {IScaledBalanceToken} from "contracts/dlend/core/interfaces/IScaledBalanceToken.sol";
-import {IAaveIncentivesController} from "contracts/dlend/core/interfaces/IAaveIncentivesController.sol";
+import {IRewardsController} from "contracts/dlend/periphery/rewards/interfaces/IRewardsController.sol";
 import {WadRayMath} from "contracts/dlend/core/protocol/libraries/math/WadRayMath.sol";
 import {MathUtils} from "contracts/dlend/core/protocol/libraries/math/MathUtils.sol";
 import {SafeCast} from "contracts/dlend/core/dependencies/openzeppelin/contracts/SafeCast.sol";
@@ -15,7 +15,6 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IERC20} from "contracts/dlend/core/dependencies/openzeppelin/contracts/IERC20.sol";
 import {IERC20WithPermit} from "contracts/dlend/core/interfaces/IERC20WithPermit.sol";
-// No direct OpenZeppelin IERC20WithPermit, check if available in your fork, else add to missing list
 // --- Local imports ---
 import {IStaticATokenLM} from "./interfaces/IStaticATokenLM.sol";
 import {IAToken} from "./interfaces/IAToken.sol";
@@ -50,7 +49,7 @@ contract StaticATokenLM is ERC20, IStaticATokenLM, IERC4626 {
     uint256 public constant STATIC__ATOKEN_LM_REVISION = 2;
 
     IPool public immutable POOL;
-    IAaveIncentivesController public immutable INCENTIVES_CONTROLLER;
+    IRewardsController public immutable REWARDS_CONTROLLER;
 
     IERC20 internal _aToken;
     address internal _aTokenUnderlying;
@@ -61,7 +60,7 @@ contract StaticATokenLM is ERC20, IStaticATokenLM, IERC4626 {
 
     constructor(
         IPool pool,
-        IAaveIncentivesController rewardsController,
+        IRewardsController rewardsController,
         address newAToken,
         string memory staticATokenName,
         string memory staticATokenSymbol
@@ -73,19 +72,18 @@ contract StaticATokenLM is ERC20, IStaticATokenLM, IERC4626 {
         )
     {
         POOL = pool;
-        INCENTIVES_CONTROLLER = rewardsController;
+        REWARDS_CONTROLLER = rewardsController;
         _aToken = IERC20(newAToken);
         _aTokenUnderlying = IAToken(newAToken).UNDERLYING_ASSET_ADDRESS();
-        IERC20(_aTokenUnderlying).safeApprove(_aToken, type(uint256).max);
-        if (address(INCENTIVES_CONTROLLER) != address(0)) {
+        IERC20(_aTokenUnderlying).approve(address(POOL), type(uint256).max);
+        if (address(REWARDS_CONTROLLER) != address(0)) {
             refreshRewardTokens();
         }
-        emit Initialized(newAToken, staticATokenName, staticATokenSymbol);
     }
 
     ///@inheritdoc IStaticATokenLM
     function refreshRewardTokens() public override {
-        address[] memory rewards = INCENTIVES_CONTROLLER.getRewardsByAsset(
+        address[] memory rewards = REWARDS_CONTROLLER.getRewardsByAsset(
             address(_aToken)
         );
         for (uint256 i = 0; i < rewards.length; i++) {
@@ -284,7 +282,7 @@ contract StaticATokenLM is ERC20, IStaticATokenLM, IERC4626 {
         assets[0] = address(_aToken);
 
         return
-            INCENTIVES_CONTROLLER.claimRewards(
+            REWARDS_CONTROLLER.claimRewards(
                 assets,
                 type(uint256).max,
                 address(this),
@@ -300,7 +298,7 @@ contract StaticATokenLM is ERC20, IStaticATokenLM, IERC4626 {
     ) external {
         require(
             msg.sender == onBehalfOf ||
-                msg.sender == INCENTIVES_CONTROLLER.getClaimer(onBehalfOf),
+                msg.sender == REWARDS_CONTROLLER.getClaimer(onBehalfOf),
             StaticATokenErrors.INVALID_CLAIMER
         );
         _claimRewardsOnBehalf(onBehalfOf, receiver, rewards);
@@ -323,7 +321,7 @@ contract StaticATokenLM is ERC20, IStaticATokenLM, IERC4626 {
         if (address(reward) == address(0)) {
             return 0;
         }
-        (, uint256 nextIndex) = INCENTIVES_CONTROLLER.getAssetIndex(
+        (, uint256 nextIndex) = REWARDS_CONTROLLER.getAssetIndex(
             address(_aToken),
             reward
         );
@@ -340,7 +338,7 @@ contract StaticATokenLM is ERC20, IStaticATokenLM, IERC4626 {
 
         address[] memory assets = new address[](1);
         assets[0] = address(_aToken);
-        uint256 freshRewards = INCENTIVES_CONTROLLER.getUserRewards(
+        uint256 freshRewards = REWARDS_CONTROLLER.getUserRewards(
             assets,
             address(this),
             reward

@@ -3,10 +3,10 @@ pragma solidity ^0.8.20;
 
 import {IERC20} from "contracts/dlend/core/dependencies/openzeppelin/contracts/IERC20.sol";
 import {IPool} from "contracts/dlend/core/interfaces/IPool.sol";
-import {IAaveIncentivesController} from "contracts/dlend/core/interfaces/IAaveIncentivesController.sol";
+import {IRewardsController} from "contracts/dlend/periphery/rewards/interfaces/IRewardsController.sol";
 import {IInitializableStaticATokenLM} from "./IInitializableStaticATokenLM.sol";
 
-interface IStaticATokenLM is IInitializableStaticATokenLM {
+interface IStaticATokenLM {
     struct SignatureParams {
         uint8 v;
         bytes32 r;

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {IPool, DataTypes} from "contracts/dlend/core/interfaces/IPool.sol";
-import {IERC20Metadata} from "contracts/dlend/core/dependencies/openzeppelin/contracts/IERC20Metadata.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 // ITransparentProxyFactory is missing, add to missing list
 // import {ITransparentProxyFactory} from "contracts/dlend/core/interfaces/ITransparentProxyFactory.sol";
