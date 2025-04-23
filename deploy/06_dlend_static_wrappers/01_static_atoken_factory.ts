@@ -1,0 +1,101 @@
+import { HardhatRuntimeEnvironment } from "hardhat/types";
+import { DeployFunction } from "hardhat-deploy/types";
+
+import {
+  DLEND_STATIC_A_TOKEN_FACTORY_ID,
+  POOL_PROXY_ID,
+} from "../../typescript/deploy-ids";
+import { chunk } from "../../typescript/dlend/helpers";
+
+const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
+  const { deployer } = await hre.getNamedAccounts();
+  const { deployments, ethers } = hre;
+  const signer = await ethers.getSigner(deployer);
+
+  // Get deployed Pool proxy address
+  const { address: poolAddress } = await deployments.get(POOL_PROXY_ID);
+
+  // Deploy StaticATokenFactory
+  const staticATokenFactoryDeployment = await deployments.deploy(
+    DLEND_STATIC_A_TOKEN_FACTORY_ID,
+    {
+      from: deployer,
+      args: [poolAddress], // pool address only
+      contract: "StaticATokenFactory",
+      autoMine: true,
+      log: false,
+    }
+  );
+
+  if (staticATokenFactoryDeployment.newlyDeployed) {
+    // Get contract instances
+    const staticATokenFactory = await ethers.getContractAt(
+      "StaticATokenFactory",
+      staticATokenFactoryDeployment.address
+    );
+    const pool = await ethers.getContractAt("IPool", poolAddress);
+
+    // Get reserves list from the Pool
+    const reservesList = await pool.getReservesList();
+
+    if (reservesList.length > 0) {
+      // Process reserves in chunks
+      const chunkSize = 3;
+      const chunkedReserves = chunk(reservesList, chunkSize);
+
+      for (
+        let chunkIndex = 0;
+        chunkIndex < chunkedReserves.length;
+        chunkIndex++
+      ) {
+        const reservesChunk = chunkedReserves[chunkIndex];
+        console.log(
+          `Processing chunk ${chunkIndex + 1}/${chunkedReserves.length} with ${reservesChunk.length} reserves`
+        );
+
+        try {
+          // Manually encode the function data
+          const callData = staticATokenFactory.interface.encodeFunctionData(
+            "createStaticATokens",
+            [reservesChunk]
+          );
+          // Send a raw transaction
+          const tx = await signer.sendTransaction({
+            to: staticATokenFactoryDeployment.address,
+            data: callData,
+          });
+          await tx.wait();
+
+          console.log(
+            `  Successfully created StaticATokens for chunk ${chunkIndex + 1}`
+          );
+          for (const asset of reservesChunk) {
+            const staticToken =
+              await staticATokenFactory.getStaticAToken(asset);
+            console.log(
+              `  - Created StaticAToken for ${asset}: ${staticToken}`
+            );
+          }
+        } catch (error: any) {
+          console.error(
+            `  Failed to create StaticATokens for chunk ${chunkIndex + 1}: ${error.message || String(error)}`
+          );
+        }
+      }
+    } else {
+      console.log(
+        "No reserves found in the Pool, skipping createStaticATokens"
+      );
+    }
+  }
+
+  console.log(`🧧 ${__filename.split("/").slice(-2).join("/")}: ✅`);
+
+  return true;
+};
+
+func.id = DLEND_STATIC_A_TOKEN_FACTORY_ID;
+func.tags = ["dlend", "dlend-static-wrappers"];
+func.dependencies = [POOL_PROXY_ID];
+
+export default func;

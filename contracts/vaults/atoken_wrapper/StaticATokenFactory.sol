@@ -16,7 +16,6 @@ import {IRewardsController} from "contracts/dlend/periphery/rewards/interfaces/I
  */
 contract StaticATokenFactory is IStaticATokenFactory {
     IPool public immutable POOL;
-    address public immutable ADMIN;
 
     mapping(address => address) internal _underlyingToStaticAToken;
     address[] internal _staticATokens;
@@ -26,9 +25,8 @@ contract StaticATokenFactory is IStaticATokenFactory {
         address indexed underlying
     );
 
-    constructor(IPool pool, address admin) {
+    constructor(IPool pool) {
         POOL = pool;
-        ADMIN = admin;
     }
 
     function initialize() external pure {
@@ -58,13 +56,13 @@ contract StaticATokenFactory is IStaticATokenFactory {
                     reserveData.aTokenAddress,
                     string(
                         abi.encodePacked(
-                            "Static ",
+                            "Wrapped ",
                             IERC20Metadata(reserveData.aTokenAddress).name()
                         )
                     ),
                     string(
                         abi.encodePacked(
-                            "stat",
+                            "w",
                             IERC20Metadata(reserveData.aTokenAddress).symbol()
                         )
                     )
