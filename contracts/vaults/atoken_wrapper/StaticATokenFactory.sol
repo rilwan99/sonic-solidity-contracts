@@ -5,6 +5,7 @@ import {IPool, DataTypes} from "contracts/dlend/core/interfaces/IPool.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {StaticATokenLM} from "./StaticATokenLM.sol";
 import {IStaticATokenFactory} from "./interfaces/IStaticATokenFactory.sol";
+import {IRewardsController} from "contracts/dlend/periphery/rewards/interfaces/IRewardsController.sol";
 
 /**
  * @title StaticATokenFactory
