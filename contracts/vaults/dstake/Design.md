@@ -83,7 +83,7 @@ dSTAKE allows users to stake a dSTABLE token (like dUSD) to earn yield. The depo
         *   `getVaultAsset() view returns (address)`: Returns the specific `vault asset` address managed by this adapter.
 
 5.  **`dLendConversionAdapter.sol` (Example Implementation)**
-    *   **Purpose:** Implements `IDStableConversionAdapter` for a dLEND `aToken` (e.g., `wddUSD`).
+    *   **Purpose:** Implements `IDStableConversionAdapter` for a wrapped dLEND `aToken` (e.g., `wddUSD`). Wrapped using StaticATokenLM.sol
     *   **State:** Protocol addresses (`dLendLendingPool`), asset addresses (`dUSD`, `wddUSD`), `collateralVault` address.
     *   **Logic:** Wraps/unwraps dUSD/`wddUSD`, deposits/withdraws from dLEND (on behalf of `collateralVault`), uses appropriate rates for `getAssetValue`.
 
