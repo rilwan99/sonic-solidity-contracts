@@ -99,24 +99,6 @@ contract StaticATokenLM is ERC20, IStaticATokenLM, IERC4626 {
     }
 
     ///@inheritdoc IStaticATokenLM
-    function deposit(
-        uint256 assets,
-        address receiver,
-        uint16 referralCode,
-        bool depositToAave
-    ) external returns (uint256) {
-        (uint256 shares, ) = _deposit(
-            msg.sender,
-            receiver,
-            0,
-            assets,
-            referralCode,
-            depositToAave
-        );
-        return shares;
-    }
-
-    ///@inheritdoc IStaticATokenLM
     function metaDeposit(
         address depositor,
         address receiver,
@@ -507,14 +489,51 @@ contract StaticATokenLM is ERC20, IStaticATokenLM, IERC4626 {
         return assets;
     }
 
-    ///@inheritdoc IStaticATokenLM
-    function redeem(
+    /// @notice Deposit aTokens and mint static tokens to receiver
+    function depositATokens(
+        uint256 aTokenAmount,
+        address receiver
+    ) external override returns (uint256) {
+        require(aTokenAmount > 0, StaticATokenErrors.INVALID_ZERO_AMOUNT);
+        // allow compensation for rebase during tx
+        uint256 userBalance = _aToken.balanceOf(msg.sender);
+        uint256 amount = aTokenAmount > userBalance
+            ? userBalance
+            : aTokenAmount;
+        // determine shares to mint
+        uint256 shares = previewDeposit(amount);
+        require(shares != 0, StaticATokenErrors.INVALID_ZERO_AMOUNT);
+        // transfer aTokens in
+        _aToken.safeTransferFrom(msg.sender, address(this), amount);
+        // mint static tokens
+        _mint(receiver, shares);
+        emit Deposit(msg.sender, receiver, amount, shares);
+        return shares;
+    }
+
+    /// @notice Burn static tokens and return aTokens to receiver
+    function redeemATokens(
         uint256 shares,
         address receiver,
-        address owner,
-        bool withdrawFromAave
-    ) external virtual returns (uint256, uint256) {
-        return _withdraw(owner, receiver, shares, 0, withdrawFromAave);
+        address owner
+    ) external override returns (uint256) {
+        require(shares > 0, StaticATokenErrors.INVALID_ZERO_AMOUNT);
+        // determine assets to return
+        uint256 assets = previewRedeem(shares);
+        require(assets != 0, StaticATokenErrors.INVALID_ZERO_AMOUNT);
+        // handle allowance if not owner
+        if (msg.sender != owner) {
+            uint256 allowed = allowance[owner][msg.sender];
+            if (allowed != type(uint256).max) {
+                allowance[owner][msg.sender] = allowed - shares;
+            }
+        }
+        // burn static tokens
+        _burn(owner, shares);
+        emit Withdraw(msg.sender, receiver, owner, assets, shares);
+        // transfer aTokens out
+        _aToken.safeTransfer(receiver, assets);
+        return assets;
     }
 
     function _deposit(

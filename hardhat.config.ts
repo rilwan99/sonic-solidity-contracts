@@ -8,10 +8,7 @@ import "dotenv/config";
 
 import { HardhatUserConfig } from "hardhat/config";
 
-import {
-  getEnvPrivateKeys,
-  getStandardNamedAccounts,
-} from "./typescript/hardhat/named-accounts";
+import { getEnvPrivateKeys } from "./typescript/hardhat/named-accounts";
 
 const config: HardhatUserConfig = {
   solidity: {
