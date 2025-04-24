@@ -49,7 +49,14 @@ const config: HardhatUserConfig = {
     },
     /* eslint-enable camelcase -- Re-enabling camelcase rule after network definitions */
   },
-  namedAccounts: getStandardNamedAccounts(),
+  namedAccounts: {
+    deployer: 0,
+    user1: 1,
+    user2: 2,
+    user3: 3,
+    staker1: 4,
+    staker2: 5,
+  },
   paths: {
     sources: "./contracts",
     tests: "./test",
