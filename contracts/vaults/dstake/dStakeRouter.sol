@@ -3,10 +3,11 @@ pragma solidity ^0.8.20;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {AccessControlEnumerable} from "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol"; // To query roles of dStakeToken
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {IdStakeRouter} from "./interfaces/IdStakeRouter.sol";
-import {IDStableConversionAdapter} from "./interfaces/IDStableConversionAdapter.sol";
+import {IdStableConversionAdapter} from "./interfaces/IdStableConversionAdapter.sol";
 import {dStakeCollateralVault} from "./dStakeCollateralVault.sol"; // Using concrete type for interactions
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 /**
  * @title dStakeRouter
@@ -15,67 +16,63 @@ import {dStakeCollateralVault} from "./dStakeCollateralVault.sol"; // Using conc
  *      This contract is non-upgradeable but replaceable via dStakeToken governance.
  *      Relies on the associated dStakeToken for role management.
  */
-contract dStakeRouter is IdStakeRouter {
+contract dStakeRouter is IdStakeRouter, AccessControl {
     using SafeERC20 for IERC20;
 
     // --- Errors ---
     error ZeroAddress();
-    error Unauthorized();
-    error InvalidAdapter(bytes32 protocolId);
-    error AdapterNotFound(bytes32 protocolId);
+    error AdapterNotFound(address vaultAsset);
+    error ZeroPreviewWithdrawAmount(address vaultAsset);
+    error InsufficientDStableFromAdapter(
+        address vaultAsset,
+        uint256 expected,
+        uint256 actual
+    );
+    error VaultAssetManagedByDifferentAdapter(
+        address vaultAsset,
+        address existingAdapter
+    );
+    error ZeroInputDStableValue(address fromAsset, uint256 fromAmount);
+    error AdapterAssetMismatch(
+        address adapter,
+        address expectedAsset,
+        address actualAsset
+    );
+    error SlippageCheckFailed(
+        address toAsset,
+        uint256 calculatedAmount,
+        uint256 minAmount
+    );
     error InconsistentState(string message);
-    error TransferFailed();
+
+    // --- Roles ---
+    bytes32 public constant DSTAKE_TOKEN_ROLE = keccak256("DSTAKE_TOKEN_ROLE");
+    bytes32 public constant COLLATERAL_EXCHANGER_ROLE =
+        keccak256("COLLATERAL_EXCHANGER_ROLE");
 
     // --- State ---
-    address public immutable stakeToken; // The dStakeToken this router serves
+    address public immutable dStakeToken; // The dStakeToken this router serves
     dStakeCollateralVault public immutable collateralVault; // The dStakeCollateralVault this router serves
     address public immutable dStable; // The underlying dSTABLE asset address
 
-    mapping(bytes32 => address) public conversionAdapters; // protocolId => adapterAddress
-    bytes32[] public protocolIds; // List of supported protocol IDs
-    bytes32 public defaultDepositProtocolId; // Default strategy for deposits
-
-    // --- Roles (Constants referencing dStakeToken roles) ---
-    // We need the actual bytes32 values from dStakeToken to check roles via AccessControlEnumerable
-    // Ideally, these would be fetched from dStakeToken or defined consistently.
-    // Using placeholders for now - REPLACE with actual values or fetch mechanism.
-    bytes32 public constant D_STAKE_TOKEN_DEFAULT_ADMIN_ROLE =
-        keccak256("DEFAULT_ADMIN_ROLE"); // Placeholder
-    bytes32 public constant D_STAKE_TOKEN_COLLATERAL_EXCHANGER_ROLE =
-        keccak256("COLLATERAL_EXCHANGER_ROLE"); // Placeholder
-
-    // --- Modifiers ---
-    modifier onlyStakeToken() {
-        if (msg.sender != stakeToken) {
-            revert Unauthorized();
-        }
-        _;
-    }
-
-    modifier onlyCollateralExchanger() {
-        // Check role on the stakeToken contract
-        if (
-            !AccessControlEnumerable(stakeToken).hasRole(
-                D_STAKE_TOKEN_COLLATERAL_EXCHANGER_ROLE,
-                msg.sender
-            )
-        ) {
-            revert Unauthorized();
-        }
-        _;
-    }
+    mapping(address => address) public vaultAssetToAdapter; // vaultAsset => adapterAddress
+    address public defaultDepositVaultAsset; // Default strategy for deposits
 
     // --- Constructor ---
-    constructor(address _stakeToken, address _collateralVault) {
-        if (_stakeToken == address(0) || _collateralVault == address(0)) {
+    constructor(address _dStakeToken, address _collateralVault) {
+        if (_dStakeToken == address(0) || _collateralVault == address(0)) {
             revert ZeroAddress();
         }
-        stakeToken = _stakeToken;
+        dStakeToken = _dStakeToken;
         collateralVault = dStakeCollateralVault(_collateralVault);
-        dStable = collateralVault.asset(); // Fetch dStable address from vault
+        dStable = collateralVault.dStable(); // Fetch dStable address from vault
         if (dStable == address(0)) {
-            revert InconsistentState("Vault has no dStable asset");
+            revert ZeroAddress();
         }
+
+        // Setup roles
+        _grantRole(DEFAULT_ADMIN_ROLE, _dStakeToken);
+        _grantRole(DSTAKE_TOKEN_ROLE, _dStakeToken);
     }
 
     // --- External Functions (IdStakeRouter Interface) ---
@@ -86,14 +83,13 @@ contract dStakeRouter is IdStakeRouter {
     function deposit(
         uint256 dStableAmount,
         address receiver
-    ) external override onlyStakeToken {
-        bytes32 protocolId = defaultDepositProtocolId;
-        address adapterAddress = conversionAdapters[protocolId];
+    ) external override onlyRole(DSTAKE_TOKEN_ROLE) {
+        address adapterAddress = vaultAssetToAdapter[defaultDepositVaultAsset];
         if (adapterAddress == address(0)) {
-            revert InvalidAdapter(protocolId);
+            revert AdapterNotFound(defaultDepositVaultAsset);
         }
 
-        // 1. Pull dStableAmount from stakeToken (caller)
+        // 1. Pull dStableAmount from dStakeToken (caller)
         IERC20(dStable).safeTransferFrom(
             msg.sender,
             address(this),
@@ -108,20 +104,11 @@ contract dStakeRouter is IdStakeRouter {
         (
             address vaultAsset,
             uint256 vaultAssetAmount
-        ) = IDStableConversionAdapter(adapterAddress).convertToVaultAsset(
+        ) = IdStableConversionAdapter(adapterAddress).convertToVaultAsset(
                 dStableAmount
             );
 
-        // 4. Notify collateral vault (this also confirms asset is supported by vault)
-        collateralVault.receiveAsset(vaultAsset, vaultAssetAmount);
-
-        emit Deposited(
-            protocolId,
-            vaultAsset,
-            vaultAssetAmount,
-            dStableAmount,
-            receiver
-        );
+        emit Deposited(vaultAsset, vaultAssetAmount, dStableAmount, receiver);
     }
 
     /**
@@ -131,32 +118,22 @@ contract dStakeRouter is IdStakeRouter {
         uint256 dStableAmount,
         address receiver,
         address owner
-    ) external override onlyStakeToken {
-        // V1: Simple withdrawal from the default deposit protocol
-        bytes32 protocolId = defaultDepositProtocolId;
-        address adapterAddress = conversionAdapters[protocolId];
+    ) external override onlyRole(DSTAKE_TOKEN_ROLE) {
+        address adapterAddress = vaultAssetToAdapter[defaultDepositVaultAsset];
         if (adapterAddress == address(0)) {
-            revert InvalidAdapter(protocolId);
+            revert AdapterNotFound(defaultDepositVaultAsset);
         }
-        IDStableConversionAdapter adapter = IDStableConversionAdapter(
+        IdStableConversionAdapter adapter = IdStableConversionAdapter(
             adapterAddress
         );
 
         // 1. Determine vault asset and required amount
-        address vaultAsset = adapter.getVaultAsset();
-        // Calculate how much vaultAsset is needed to get `dStableAmount` of dStable
-        // This requires a reverse calculation or an assumption in the adapter design.
-        // Assuming getAssetValue gives the rate vaultAsset -> dStable.
-        // We need vaultAssetAmount such that adapter.getAssetValue(vaultAsset, vaultAssetAmount) >= dStableAmount
-        // This might need iteration or a dedicated function in the adapter if the rate is non-linear.
-        // Simplification: Assuming 1:1 mapping for calculation or adapter handles it.
-        // For a robust solution, the adapter might need a `getVaultAssetAmountForDStableAmount` function.
-        // --- Placeholder calculation (NEEDS REFINEMENT based on adapter capabilities) ---
-        uint256 rate = adapter.getAssetValue(vaultAsset, 1e18); // Example: Get rate for 1 unit
-        if (rate == 0) revert InconsistentState("Adapter rate is zero");
-        uint256 vaultAssetAmount = (dStableAmount * 1e18) / rate; // Approximate amount needed
-        // Add buffer for potential slippage/rounding in conversion? Or adapter guarantees output?
-        // --- End Placeholder ---
+        address vaultAsset = adapter.vaultAsset();
+        // Use previewConvertFromVaultAsset to get the required vaultAssetAmount for the target dStableAmount
+        uint256 vaultAssetAmount = IERC4626(vaultAsset).previewWithdraw(
+            dStableAmount
+        );
+        if (vaultAssetAmount == 0) revert ZeroPreviewWithdrawAmount(vaultAsset);
 
         // 2. Pull vaultAsset from collateral vault
         collateralVault.sendAsset(vaultAsset, vaultAssetAmount, address(this));
@@ -166,20 +143,24 @@ contract dStakeRouter is IdStakeRouter {
         IERC20(vaultAsset).approve(adapterAddress, vaultAssetAmount);
 
         // 4. Call adapter to convert and send dStable to receiver
+        // Temporarily transfer to this contract, then forward to receiver if needed
         uint256 receivedDStable = adapter.convertFromVaultAsset(
-            dStableAmount,
-            receiver
+            vaultAssetAmount
         );
+        if (receiver != address(this)) {
+            IERC20(dStable).safeTransfer(receiver, receivedDStable);
+        }
 
-        // Optional check: Ensure received amount is sufficient
+        // Sanity check: Ensure received amount is sufficient
         if (receivedDStable < dStableAmount) {
-            // This indicates an issue with the adapter or rate calculation
-            // Revert or handle potential shortfall? Reverting is safer.
-            revert InconsistentState("Adapter returned insufficient dStable");
+            revert InsufficientDStableFromAdapter(
+                vaultAsset,
+                dStableAmount,
+                receivedDStable
+            );
         }
 
         emit Withdrawn(
-            protocolId,
             vaultAsset,
             vaultAssetAmount,
             dStableAmount,
@@ -192,36 +173,33 @@ contract dStakeRouter is IdStakeRouter {
 
     /**
      * @notice Exchanges `fromVaultAssetAmount` of one vault asset for another via their adapters.
-     * @dev Uses dSTABLE as the intermediary asset. Requires COLLATERAL_EXCHANGER_ROLE on dStakeToken.
-     * @param fromProtocolId The protocol ID of the asset to sell.
-     * @param toProtocolId The protocol ID of the asset to buy.
+     * @dev Uses dSTABLE as the intermediary asset. Requires COLLATERAL_EXCHANGER_ROLE.
+     * @param fromVaultAsset The address of the asset to sell.
+     * @param toVaultAsset The address of the asset to buy.
      * @param fromVaultAssetAmount The amount of the `fromVaultAsset` to exchange.
      */
-    function exchangeAssets(
-        bytes32 fromProtocolId,
-        bytes32 toProtocolId,
+    function exchangeAssetsUsingAdapters(
+        address fromVaultAsset,
+        address toVaultAsset,
         uint256 fromVaultAssetAmount
-    ) external onlyCollateralExchanger {
-        address fromAdapterAddress = conversionAdapters[fromProtocolId];
-        address toAdapterAddress = conversionAdapters[toProtocolId];
+    ) external onlyRole(COLLATERAL_EXCHANGER_ROLE) {
+        address fromAdapterAddress = vaultAssetToAdapter[fromVaultAsset];
+        address toAdapterAddress = vaultAssetToAdapter[toVaultAsset];
         if (fromAdapterAddress == address(0))
-            revert AdapterNotFound(fromProtocolId);
+            revert AdapterNotFound(fromVaultAsset);
         if (toAdapterAddress == address(0))
-            revert AdapterNotFound(toProtocolId);
+            revert AdapterNotFound(toVaultAsset);
 
-        IDStableConversionAdapter fromAdapter = IDStableConversionAdapter(
+        IdStableConversionAdapter fromAdapter = IdStableConversionAdapter(
             fromAdapterAddress
         );
-        IDStableConversionAdapter toAdapter = IDStableConversionAdapter(
+        IdStableConversionAdapter toAdapter = IdStableConversionAdapter(
             toAdapterAddress
         );
 
         // 1. Get assets and calculate equivalent dStable amount
-        address fromVaultAsset = fromAdapter.getVaultAsset();
-        uint256 dStableAmountEquivalent = fromAdapter.getAssetValue(
-            fromVaultAsset,
-            fromVaultAssetAmount
-        );
+        uint256 dStableAmountEquivalent = fromAdapter
+            .previewConvertFromVaultAsset(fromVaultAssetAmount);
 
         // 2. Pull fromVaultAsset from collateral vault
         collateralVault.sendAsset(
@@ -237,129 +215,227 @@ contract dStakeRouter is IdStakeRouter {
             fromVaultAssetAmount
         );
         uint256 receivedDStable = fromAdapter.convertFromVaultAsset(
-            dStableAmountEquivalent,
-            address(this)
+            fromVaultAssetAmount
         );
 
         // 4. Approve toAdapter & Convert dStable -> toVaultAsset (sent to collateralVault)
         IERC20(dStable).approve(toAdapterAddress, 0);
         IERC20(dStable).approve(toAdapterAddress, receivedDStable);
-        (address toVaultAsset, uint256 resultingToVaultAssetAmount) = toAdapter
-            .convertToVaultAsset(receivedDStable);
-
-        // 5. Notify collateral vault of received toVaultAsset
-        collateralVault.receiveAsset(toVaultAsset, resultingToVaultAssetAmount);
+        (
+            address actualToVaultAsset,
+            uint256 resultingToVaultAssetAmount
+        ) = toAdapter.convertToVaultAsset(receivedDStable);
+        require(actualToVaultAsset == toVaultAsset, "Adapter asset mismatch");
 
         emit Exchanged(
-            fromProtocolId,
-            toProtocolId,
             fromVaultAsset,
-            fromVaultAssetAmount,
             toVaultAsset,
+            fromVaultAssetAmount,
             resultingToVaultAssetAmount,
-            dStableAmountEquivalent
+            dStableAmountEquivalent,
+            msg.sender
         );
     }
 
-    // --- External Functions (Governance - Managed by dStakeToken Admin) ---
-
     /**
-     * @notice Adds or updates a conversion adapter for a given protocol ID.
-     * @dev Only callable by an address holding the DEFAULT_ADMIN_ROLE on the associated stakeToken contract.
-     * @param protocolId The identifier for the protocol/strategy.
-     * @param adapterAddress The address of the new adapter contract.
+     * @notice Exchanges assets between the collateral vault and an external solver.
+     * @dev Pulls `fromVaultAsset` from the solver (`msg.sender`) and sends `toVaultAsset` from the vault to the solver.
+     *      Requires COLLATERAL_EXCHANGER_ROLE.
+     * @param fromVaultAsset The address of the asset the solver is providing.
+     * @param toVaultAsset The address of the asset the solver will receive from the vault.
+     * @param fromVaultAssetAmount The amount of `fromVaultAsset` provided by the solver.
+     * @param minToVaultAssetAmount The minimum amount of `toVaultAsset` the solver is willing to accept.
      */
-    function addAdapter(bytes32 protocolId, address adapterAddress) external {
-        _checkAdmin();
-        if (adapterAddress == address(0)) {
+    function exchangeAssets(
+        address fromVaultAsset,
+        address toVaultAsset,
+        uint256 fromVaultAssetAmount,
+        uint256 minToVaultAssetAmount
+    ) external onlyRole(COLLATERAL_EXCHANGER_ROLE) {
+        if (fromVaultAssetAmount == 0) {
+            revert InconsistentState("Input amount cannot be zero");
+        }
+        if (fromVaultAsset == address(0) || toVaultAsset == address(0)) {
             revert ZeroAddress();
         }
 
-        // Basic validation (more robust checks in collateralVault.addAdapter)
-        try IDStableConversionAdapter(adapterAddress).getVaultAsset() returns (
-            address vaultAsset
-        ) {
-            if (vaultAsset == address(0)) revert InvalidAdapter(protocolId); // Adapter must report a vault asset
-        } catch {
-            revert InvalidAdapter(protocolId);
+        address fromAdapterAddress = vaultAssetToAdapter[fromVaultAsset];
+        address toAdapterAddress = vaultAssetToAdapter[toVaultAsset];
+        if (fromAdapterAddress == address(0))
+            revert AdapterNotFound(fromVaultAsset);
+        if (toAdapterAddress == address(0))
+            revert AdapterNotFound(toVaultAsset);
+
+        IdStableConversionAdapter fromAdapter = IdStableConversionAdapter(
+            fromAdapterAddress
+        );
+        IdStableConversionAdapter toAdapter = IdStableConversionAdapter(
+            toAdapterAddress
+        );
+
+        // Calculate the dStable value received from the solver's input asset
+        uint256 dStableValueIn = fromAdapter.previewConvertFromVaultAsset(
+            fromVaultAssetAmount
+        );
+        if (dStableValueIn == 0)
+            revert ZeroInputDStableValue(fromVaultAsset, fromVaultAssetAmount);
+
+        // Calculate the expected output vault asset amount based on the dStable value received
+        (
+            address expectedToAsset,
+            uint256 calculatedToVaultAssetAmount
+        ) = toAdapter.previewConvertToVaultAsset(dStableValueIn);
+
+        // Sanity check: ensure the adapter is for the correct target asset
+        if (expectedToAsset != toVaultAsset) {
+            revert AdapterAssetMismatch(
+                toAdapterAddress,
+                toVaultAsset,
+                expectedToAsset
+            );
         }
 
-        if (conversionAdapters[protocolId] == address(0)) {
-            // Only add to array if it's a new protocol ID
-            protocolIds.push(protocolId);
+        // Slippage check: ensure calculated output meets minimum requirement
+        if (calculatedToVaultAssetAmount < minToVaultAssetAmount) {
+            revert SlippageCheckFailed(
+                toVaultAsset,
+                calculatedToVaultAssetAmount,
+                minToVaultAssetAmount
+            );
         }
-        conversionAdapters[protocolId] = adapterAddress;
-        emit AdapterSet(protocolId, adapterAddress);
+        // --- End Value Calculation and Slippage Check ---
+
+        // 1. Pull fromVaultAsset from solver (msg.sender) to this contract
+        IERC20(fromVaultAsset).safeTransferFrom(
+            msg.sender,
+            address(this),
+            fromVaultAssetAmount
+        );
+
+        // 2. Deposit fromVaultAsset into the collateralVault
+        // Directly transfer the asset to the vault
+        IERC20(fromVaultAsset).safeTransfer(
+            address(collateralVault),
+            fromVaultAssetAmount
+        );
+
+        // 3. Send toVaultAsset from collateralVault to solver (msg.sender)
+        // Use the calculated amount that met the slippage check
+        collateralVault.sendAsset(
+            toVaultAsset,
+            calculatedToVaultAssetAmount,
+            msg.sender
+        );
+
+        emit Exchanged(
+            fromVaultAsset,
+            toVaultAsset,
+            fromVaultAssetAmount,
+            calculatedToVaultAssetAmount,
+            dStableValueIn,
+            msg.sender
+        );
+    }
+
+    // --- External Functions (Governance - Managed by Admin) ---
+
+    /**
+     * @notice Adds or updates a conversion adapter for a given vault asset.
+     * @dev Only callable by an address with DEFAULT_ADMIN_ROLE.
+     * @param vaultAsset The address of the vault asset.
+     * @param adapterAddress The address of the new adapter contract.
+     */
+    function addAdapter(
+        address vaultAsset,
+        address adapterAddress
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (adapterAddress == address(0) || vaultAsset == address(0)) {
+            revert ZeroAddress();
+        }
+        address adapterVaultAsset = IdStableConversionAdapter(adapterAddress)
+            .vaultAsset();
+        if (adapterVaultAsset != vaultAsset)
+            revert AdapterAssetMismatch(
+                adapterAddress,
+                vaultAsset,
+                adapterVaultAsset
+            );
+        if (
+            vaultAssetToAdapter[vaultAsset] != address(0) &&
+            vaultAssetToAdapter[vaultAsset] != adapterAddress
+        ) {
+            revert VaultAssetManagedByDifferentAdapter(
+                vaultAsset,
+                vaultAssetToAdapter[vaultAsset]
+            );
+        }
+        vaultAssetToAdapter[vaultAsset] = adapterAddress;
+        emit AdapterSet(vaultAsset, adapterAddress);
     }
 
     /**
-     * @notice Removes a conversion adapter for a given protocol ID.
-     * @dev Only callable by an address holding the DEFAULT_ADMIN_ROLE on the associated stakeToken contract.
+     * @notice Removes a conversion adapter for a given vault asset.
+     * @dev Only callable by an address with DEFAULT_ADMIN_ROLE.
      * @dev Does not automatically migrate funds. Ensure assets managed by this adapter are zero
      *      in the collateral vault or migrated via exchangeAssets before calling.
-     * @param protocolId The identifier for the protocol/strategy to remove.
+     * @param vaultAsset The address of the vault asset to remove.
      */
-    function removeAdapter(bytes32 protocolId) external {
-        _checkAdmin();
-        address adapterAddress = conversionAdapters[protocolId];
+    function removeAdapter(
+        address vaultAsset
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        address adapterAddress = vaultAssetToAdapter[vaultAsset];
         if (adapterAddress == address(0)) {
-            revert AdapterNotFound(protocolId);
+            revert AdapterNotFound(vaultAsset);
         }
-
-        delete conversionAdapters[protocolId];
-
-        // Remove from protocolIds array
-        for (uint i = 0; i < protocolIds.length; i++) {
-            if (protocolIds[i] == protocolId) {
-                protocolIds[i] = protocolIds[protocolIds.length - 1];
-                protocolIds.pop();
-                break;
-            }
-        }
-        // Note: Corresponding adapter should also be removed from collateralVault
-        emit AdapterRemoved(protocolId, adapterAddress);
+        delete vaultAssetToAdapter[vaultAsset];
+        emit AdapterRemoved(vaultAsset, adapterAddress);
     }
 
     /**
-     * @notice Sets the default protocol ID to use for new deposits.
-     * @dev Only callable by an address holding the DEFAULT_ADMIN_ROLE on the associated stakeToken contract.
-     * @param _protocolId The identifier for the default protocol/strategy.
+     * @notice Sets the default vault asset to use for new deposits.
+     * @dev Only callable by an address with DEFAULT_ADMIN_ROLE.
+     * @param vaultAsset The address of the vault asset to set as default.
      */
-    function setDefaultDepositProtocol(bytes32 _protocolId) external {
-        _checkAdmin();
-        if (conversionAdapters[_protocolId] == address(0)) {
-            revert AdapterNotFound(_protocolId);
+    function setDefaultDepositVaultAsset(
+        address vaultAsset
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (vaultAssetToAdapter[vaultAsset] == address(0)) {
+            revert AdapterNotFound(vaultAsset);
         }
-        defaultDepositProtocolId = _protocolId;
-        emit DefaultDepositProtocolSet(_protocolId);
+        defaultDepositVaultAsset = vaultAsset;
+        emit DefaultDepositVaultAssetSet(vaultAsset);
     }
 
-    // --- Internal Functions ---
+    /**
+     * @notice Grants the collateral exchanger role to an address.
+     * @dev Only callable by an address with DEFAULT_ADMIN_ROLE.
+     * @param exchanger The address to grant the role to.
+     */
+    function addCollateralExchanger(
+        address exchanger
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _grantRole(COLLATERAL_EXCHANGER_ROLE, exchanger);
+    }
 
     /**
-     * @dev Internal function to check if the caller has DEFAULT_ADMIN_ROLE on the stakeToken.
+     * @notice Revokes the collateral exchanger role from an address.
+     * @dev Only callable by an address with DEFAULT_ADMIN_ROLE.
+     * @param exchanger The address to revoke the role from.
      */
-    function _checkAdmin() internal view {
-        if (
-            !AccessControlEnumerable(stakeToken).hasRole(
-                D_STAKE_TOKEN_DEFAULT_ADMIN_ROLE,
-                msg.sender
-            )
-        ) {
-            revert Unauthorized();
-        }
+    function removeCollateralExchanger(
+        address exchanger
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _revokeRole(COLLATERAL_EXCHANGER_ROLE, exchanger);
     }
 
     // --- Events ---
     event Deposited(
-        bytes32 indexed protocolId,
         address indexed vaultAsset,
         uint256 vaultAssetAmount,
         uint256 dStableAmount,
         address receiver
     );
     event Withdrawn(
-        bytes32 indexed protocolId,
         address indexed vaultAsset,
         uint256 vaultAssetAmount,
         uint256 dStableAmount,
@@ -367,15 +443,14 @@ contract dStakeRouter is IdStakeRouter {
         address receiver
     );
     event Exchanged(
-        bytes32 indexed fromProtocolId,
-        bytes32 indexed toProtocolId,
-        address fromVaultAsset,
-        uint256 fromVaultAssetAmount,
-        address toVaultAsset,
-        uint256 toVaultAssetAmount,
-        uint256 dStableAmountEquivalent
+        address indexed fromAsset,
+        address indexed toAsset,
+        uint256 fromAssetAmount,
+        uint256 toAssetAmount,
+        uint256 dStableAmountEquivalent,
+        address indexed exchanger
     );
-    event AdapterSet(bytes32 indexed protocolId, address adapterAddress);
-    event AdapterRemoved(bytes32 indexed protocolId, address adapterAddress);
-    event DefaultDepositProtocolSet(bytes32 indexed protocolId);
+    event AdapterSet(address indexed vaultAsset, address adapterAddress);
+    event AdapterRemoved(address indexed vaultAsset, address adapterAddress);
+    event DefaultDepositVaultAssetSet(address indexed vaultAsset);
 }

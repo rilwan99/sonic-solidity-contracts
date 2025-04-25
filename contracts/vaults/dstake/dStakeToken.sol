@@ -7,6 +7,7 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IdStakeCollateralVault} from "./interfaces/IdStakeCollateralVault.sol";
 import {IdStakeRouter} from "./interfaces/IdStakeRouter.sol";
+import {BasisPointConstants} from "../../common/BasisPointConstants.sol";
 
 /**
  * @title dStakeToken
@@ -20,23 +21,19 @@ import {IdStakeRouter} from "./interfaces/IdStakeRouter.sol";
  */
 contract dStakeToken is ERC4626, AccessControl {
     // --- Roles ---
-    bytes32 public constant ROUTER_SETTER_ROLE =
-        keccak256("ROUTER_SETTER_ROLE");
-    bytes32 public constant COLLATERAL_VAULT_SETTER_ROLE =
-        keccak256("COLLATERAL_VAULT_SETTER_ROLE");
     bytes32 public constant FEE_MANAGER_ROLE = keccak256("FEE_MANAGER_ROLE");
 
     // --- Errors ---
     error ZeroAddress();
     error InvalidFeeBps(uint256 feeBps, uint256 maxFeeBps);
-    error Unauthorized();
 
     // --- State ---
     IdStakeCollateralVault public collateralVault;
     IdStakeRouter public router;
 
     uint256 public withdrawalFeeBps;
-    uint256 public constant maxWithdrawalFeeBps = 100; // 1% max withdrawal fee
+    uint256 public constant maxWithdrawalFeeBps =
+        BasisPointConstants.ONE_PERCENT_BPS;
 
     // --- Constructor ---
     constructor(
@@ -44,23 +41,17 @@ contract dStakeToken is ERC4626, AccessControl {
         string memory _name,
         string memory _symbol,
         address _initialAdmin,
-        address _initialRouterSetter,
-        address _initialCollateralVaultSetter,
         address _initialFeeManager
     ) ERC4626(IERC20(address(_dStable))) ERC20(_name, _symbol) {
         if (
             address(_dStable) == address(0) ||
             _initialAdmin == address(0) ||
-            _initialRouterSetter == address(0) ||
-            _initialCollateralVaultSetter == address(0) ||
             _initialFeeManager == address(0)
         ) {
             revert ZeroAddress();
         }
 
         _grantRole(DEFAULT_ADMIN_ROLE, _initialAdmin);
-        _grantRole(ROUTER_SETTER_ROLE, _initialRouterSetter);
-        _grantRole(COLLATERAL_VAULT_SETTER_ROLE, _initialCollateralVaultSetter);
         _grantRole(FEE_MANAGER_ROLE, _initialFeeManager);
     }
 
@@ -74,7 +65,7 @@ contract dStakeToken is ERC4626, AccessControl {
         if (address(collateralVault) == address(0)) {
             return 0;
         }
-        return collateralVault.getTotalAssetValue();
+        return collateralVault.totalValueInDStable();
     }
 
     /**
@@ -124,7 +115,8 @@ contract dStakeToken is ERC4626, AccessControl {
             revert ZeroAddress(); // Router or Vault not set
         }
 
-        uint256 fee = (assets * withdrawalFeeBps) / 10_000;
+        uint256 fee = (assets * withdrawalFeeBps) /
+            BasisPointConstants.ONE_HUNDRED_PERCENT_BPS;
         uint256 amountToSend = assets - fee;
 
         // Delegate conversion and vault update logic to router
@@ -145,13 +137,10 @@ contract dStakeToken is ERC4626, AccessControl {
 
     /**
      * @notice Sets the address of the dStakeRouter contract.
-     * @dev Requires ROUTER_SETTER_ROLE.
+     * @dev Only callable by DEFAULT_ADMIN_ROLE.
      * @param _router The address of the new router contract.
      */
-    function setRouter(address _router) external {
-        if (!hasRole(ROUTER_SETTER_ROLE, msg.sender)) {
-            revert Unauthorized();
-        }
+    function setRouter(address _router) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (_router == address(0)) {
             revert ZeroAddress();
         }
@@ -161,13 +150,12 @@ contract dStakeToken is ERC4626, AccessControl {
 
     /**
      * @notice Sets the address of the dStakeCollateralVault contract.
-     * @dev Requires COLLATERAL_VAULT_SETTER_ROLE.
+     * @dev Only callable by DEFAULT_ADMIN_ROLE.
      * @param _collateralVault The address of the new collateral vault contract.
      */
-    function setCollateralVault(address _collateralVault) external {
-        if (!hasRole(COLLATERAL_VAULT_SETTER_ROLE, msg.sender)) {
-            revert Unauthorized();
-        }
+    function setCollateralVault(
+        address _collateralVault
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (_collateralVault == address(0)) {
             revert ZeroAddress();
         }
@@ -180,10 +168,9 @@ contract dStakeToken is ERC4626, AccessControl {
      * @dev Requires FEE_MANAGER_ROLE.
      * @param _feeBps The new withdrawal fee (e.g., 10 = 0.1%).
      */
-    function setWithdrawalFee(uint256 _feeBps) external {
-        if (!hasRole(FEE_MANAGER_ROLE, msg.sender)) {
-            revert Unauthorized();
-        }
+    function setWithdrawalFee(
+        uint256 _feeBps
+    ) external onlyRole(FEE_MANAGER_ROLE) {
         if (_feeBps > maxWithdrawalFeeBps) {
             revert InvalidFeeBps(_feeBps, maxWithdrawalFeeBps);
         }

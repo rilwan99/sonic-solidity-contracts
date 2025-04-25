@@ -13,11 +13,11 @@ interface IdStakeCollateralVault {
      * @dev This is typically called by the dStakeToken's `totalAssets()` function.
      * @return dStableValue The total value of managed assets in terms of the dSTABLE asset.
      */
-    function getTotalAssetValue() external view returns (uint256 dStableValue);
+    function totalValueInDStable() external view returns (uint256 dStableValue);
 
     /**
      * @notice Returns the address of the underlying dSTABLE asset the vault operates with.
      * @return The address of the dSTABLE asset.
      */
-    function asset() external view returns (address);
+    function dStable() external view returns (address);
 }

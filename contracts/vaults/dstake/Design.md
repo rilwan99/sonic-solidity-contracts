@@ -33,7 +33,6 @@ dSTAKE allows users to stake a dSTABLE token (like dUSD) to earn yield. The depo
         *   `supportedAssets`: `address[]`. List of `vault asset` addresses. Managed by `stakeToken` admin.
     *   **Key Functions:**
         *   `getTotalAssetValue() returns (uint256 dStableValue)`: Iterates `supportedAssets`, calls `adapter.getAssetValue()` for each, sums results. View.
-        *   `receiveAsset(address vaultAsset, uint256 amount)`: Acknowledges `vaultAsset` receipt. `onlyRouter`.
         *   `sendAsset(address vaultAsset, uint256 amount, address recipient)`: Sends `vaultAsset`. `onlyRouter`.
         *   `addAdapter(address vaultAsset, address adapterAddress)`: Governance (`stakeToken` admin) to add asset/adapter.
         *   `removeAdapter(address vaultAsset)`: Governance (`stakeToken` admin) to remove asset/adapter (requires zero balance).
@@ -47,32 +46,35 @@ dSTAKE allows users to stake a dSTABLE token (like dUSD) to earn yield. The depo
         *   `dStakeToken`: Address of `dStakeToken`. Immutable.
         *   `collateralVault`: Address of `dStakeCollateralVault`. Immutable.
         *   `dStable`: Address of the dSTABLE token (`stakeToken.asset()`). Immutable.
-        *   `conversionAdapters`: `mapping(bytes32 protocolId => address adapter)`. Managed by `stakeToken` admin.
-        *   `protocolIds`: `bytes32[]`. Managed by `stakeToken` admin.
-        *   `defaultDepositProtocolId`: Default strategy ID for new deposits. Settable by `stakeToken` admin.
+        *   `vaultAssetToAdapter`: `mapping(address => address)`. Maps each vault asset to its adapter. Managed by `stakeToken` admin.
+        *   `defaultDepositVaultAsset`: Default vault asset for new deposits. Settable by `stakeToken` admin.
     *   **Roles (Managed by `stakeToken` AccessControl):**
         *   `COLLATERAL_EXCHANGER_ROLE`: Can call `exchangeAssets`.
     *   **Key Functions:**
-        *   `deposit(uint256 dStableAmount, address receiver)`: `onlyStakeToken`. Converts `dStableAmount` to a chosen `vaultAsset` via adapter, sends `vaultAsset` to `collateralVault`.
+        *   `deposit(uint256 dStableAmount, address receiver)`: `onlyRole(DSTAKE_TOKEN_ROLE)`. Converts `dStableAmount` to the default vault asset via its adapter, sends `vaultAsset` to `collateralVault`.
             1.  Pulls `dStableAmount` from `stakeToken`.
-            2.  Selects strategy/adapter (e.g., `defaultDepositProtocolId`).
-            3.  Calls `adapter.convertToVaultAsset(dStableAmount)` depositing result to `collateralVault`.
-            4.  Calls `collateralVault.receiveAsset()` to notify.
-        *   `withdraw(uint256 dStableAmount, address receiver, address owner)`: `onlyStakeToken`. Pulls required `vaultAsset` from `collateralVault` via `sendAsset`, converts it back to `dStableAmount` via adapter, sends dSTABLE to `receiver`.
-            1.  Selects strategy/adapter.
-            2.  Calculates required `vaultAssetAmount` using `adapter.getAssetValue`.
-            3.  Calls `collateralVault.sendAsset()` to pull `vaultAsset` to router.
-            4.  Calls `adapter.convertFromVaultAsset(dStableAmount, receiver)`.
-        *   `exchangeAssets(bytes32 fromProtocolId, bytes32 toProtocolId, uint256 fromVaultAssetAmount)`: `onlyCollateralExchangerRole`. Swaps `fromVaultAssetAmount` of one `vaultAsset` for another via their adapters, using dSTABLE as intermediary.
-            1.  Get adapters, determine assets.
+            2.  Calls `adapter.convertToVaultAsset(dStableAmount)` depositing result to `collateralVault`.
+        *   `withdraw(uint256 dStableAmount, address receiver, address owner)`: `onlyRole(DSTAKE_TOKEN_ROLE)`. Pulls required `vaultAsset` from `collateralVault` via `sendAsset`, converts it back to `dStableAmount` via adapter, sends dSTABLE to `receiver`.
+            1.  Calculates required `vaultAssetAmount` using `adapter.previewWithdraw`.
+            2.  Calls `collateralVault.sendAsset()` to pull `vaultAsset` to router.
+            3.  Calls `adapter.convertFromVaultAsset(vaultAssetAmount)`.
+        *   `exchangeAssetsUsingAdapters(address fromVaultAsset, address toVaultAsset, uint256 fromVaultAssetAmount)`: `onlyRole(COLLATERAL_EXCHANGER_ROLE)`. Swaps `fromVaultAssetAmount` of one `vaultAsset` for another via their adapters, using dSTABLE as intermediary.
+            1.  Get adapters for `fromVaultAsset` and `toVaultAsset`.
             2.  Calculate equivalent `dStableAmount` of `fromVaultAssetAmount`.
             3.  Call `collateralVault.sendAsset()` to pull `fromVaultAsset`.
             4.  Call `fromAdapter.convertFromVaultAsset()` sending dSTABLE to router.
             5.  Call `toAdapter.convertToVaultAsset()` using received dSTABLE, depositing result to `collateralVault`.
-            6.  Call `collateralVault.receiveAsset()`.
-        *   `addAdapter(bytes32 protocolId, address adapterAddress)`: Governance (`stakeToken` admin).
-        *   `removeAdapter(bytes32 protocolId)`: Governance (`stakeToken` admin).
-        *   `setDefaultDepositProtocol(bytes32 protocolId)`: Governance (`stakeToken` admin).
+        *   `exchangeAssets(address fromVaultAsset, address toVaultAsset, uint256 fromVaultAssetAmount, uint256 minToVaultAssetAmount)`: `onlyRole(COLLATERAL_EXCHANGER_ROLE)`. Facilitates asset swaps driven by an external solver. Calculates expected output based on input value and ensures it meets minimum slippage requirement.
+            1. Get adapters for `fromVaultAsset` and `toVaultAsset`.
+            2. Calls `fromAdapter.previewConvertFromVaultAsset` to get `dStableValueIn` from `fromVaultAssetAmount`.
+            3. Calls `toAdapter.previewConvertToVaultAsset` with `dStableValueIn` to get `calculatedToVaultAssetAmount`.
+            4. Requires `calculatedToVaultAssetAmount >= minToVaultAssetAmount` (Slippage Check).
+            5. Pulls `fromVaultAssetAmount` of `fromVaultAsset` from solver (`msg.sender`).
+            6. Transfers `fromVaultAsset` to `collateralVault`.
+            7. Calls `collateralVault.sendAsset()` to send `calculatedToVaultAssetAmount` of `toVaultAsset` to the solver (`msg.sender`).
+        *   `addAdapter(address vaultAsset, address adapterAddress)`: Governance (`stakeToken` admin).
+        *   `removeAdapter(address vaultAsset)`: Governance (`stakeToken` admin).
+        *   `setDefaultDepositVaultAsset(address vaultAsset)`: Governance (`stakeToken` admin).
 
 4.  **`IDStableConversionAdapter.sol` (Interface)**
     *   **Purpose:** Standard interface for converting dSTABLE asset <=> specific `vault asset` and valuing the `vault asset`.
