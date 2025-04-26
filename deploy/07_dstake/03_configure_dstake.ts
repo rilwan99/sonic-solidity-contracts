@@ -10,9 +10,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { execute, read, get } = deployments;
   const { deployer } = await getNamedAccounts();
 
-  console.log("-----------------------------------------------------");
-  console.log("Configuring dSTAKE Contracts...");
-
   const config = await getConfig(hre);
 
   if (!config.dStake) {
@@ -254,8 +251,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     }
   }
 
-  console.log("dSTAKE Contracts Configured!");
-  console.log("-----------------------------------------------------");
+  console.log(`🥩 ${__filename.split("/").slice(-2).join("/")}: ✅`);
 };
 
 export default func;

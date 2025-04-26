@@ -46,15 +46,17 @@ dSTAKE allows users to stake a dSTABLE token (like dUSD) to earn yield. The depo
         *   `dStakeToken`: Address of `dStakeToken`. Immutable.
         *   `collateralVault`: Address of `dStakeCollateralVault`. Immutable.
         *   `dStable`: Address of the dSTABLE token (`stakeToken.asset()`). Immutable.
-        *   `vaultAssetToAdapter`: `mapping(address => address)`. Maps each vault asset to its adapter. Managed by `stakeToken` admin.
-        *   `defaultDepositVaultAsset`: Default vault asset for new deposits. Settable by `stakeToken` admin.
-    *   **Roles (Managed by `stakeToken` AccessControl):**
-        *   `COLLATERAL_EXCHANGER_ROLE`: Can call `exchangeAssets`.
+        *   `vaultAssetToAdapter`: `mapping(address => address)`. Maps each vault asset to its adapter. Managed by `DEFAULT_ADMIN_ROLE`.
+        *   `defaultDepositVaultAsset`: Default vault asset for new deposits. Settable by `DEFAULT_ADMIN_ROLE`.
+    *   **Roles:**
+        *   `DEFAULT_ADMIN_ROLE`: Initially granted to the deployer, intended to be transferred to governance. Can manage adapters, default deposit asset, and grant/revoke `COLLATERAL_EXCHANGER_ROLE`.
+        *   `DSTAKE_TOKEN_ROLE`: Granted to the associated `dStakeToken` contract. Allows the token contract to call `deposit` and `withdraw`.
+        *   `COLLATERAL_EXCHANGER_ROLE`: Can call `exchangeAssets`. Managed by `DEFAULT_ADMIN_ROLE`.
     *   **Key Functions:**
-        *   `deposit(uint256 dStableAmount, address receiver)`: `onlyRole(DSTAKE_TOKEN_ROLE)`. Converts `dStableAmount` to the default vault asset via its adapter, sends `vaultAsset` to `collateralVault`.
+        *   `deposit(uint256 dStableAmount, address receiver)`: `onlyRole(DSTAKE_TOKEN_ROLE)`. Called by `dStakeToken`. Converts `dStableAmount` to the default vault asset via its adapter, sends `vaultAsset` to `collateralVault`.
             1.  Pulls `dStableAmount` from `stakeToken`.
             2.  Calls `adapter.convertToVaultAsset(dStableAmount)` depositing result to `collateralVault`.
-        *   `withdraw(uint256 dStableAmount, address receiver, address owner)`: `onlyRole(DSTAKE_TOKEN_ROLE)`. Pulls required `vaultAsset` from `collateralVault` via `sendAsset`, converts it back to `dStableAmount` via adapter, sends dSTABLE to `receiver`.
+        *   `withdraw(uint256 dStableAmount, address receiver, address owner)`: `onlyRole(DSTAKE_TOKEN_ROLE)`. Called by `dStakeToken`. Pulls required `vaultAsset` from `collateralVault` via `sendAsset`, converts it back to `dStableAmount` via adapter, sends dSTABLE to `receiver`.
             1.  Calculates required `vaultAssetAmount` using `adapter.previewWithdraw`.
             2.  Calls `collateralVault.sendAsset()` to pull `vaultAsset` to router.
             3.  Calls `adapter.convertFromVaultAsset(vaultAssetAmount)`.
@@ -64,6 +66,8 @@ dSTAKE allows users to stake a dSTABLE token (like dUSD) to earn yield. The depo
             3.  Call `collateralVault.sendAsset()` to pull `fromVaultAsset`.
             4.  Call `fromAdapter.convertFromVaultAsset()` sending dSTABLE to router.
             5.  Call `toAdapter.convertToVaultAsset()` using received dSTABLE, depositing result to `collateralVault`.
+            6.  Transfers `fromVaultAsset` to `collateralVault`.
+            7.  Calls `collateralVault.sendAsset()` to send `calculatedToVaultAssetAmount` of `toVaultAsset` to the solver (`msg.sender`).
         *   `exchangeAssets(address fromVaultAsset, address toVaultAsset, uint256 fromVaultAssetAmount, uint256 minToVaultAssetAmount)`: `onlyRole(COLLATERAL_EXCHANGER_ROLE)`. Facilitates asset swaps driven by an external solver. Calculates expected output based on input value and ensures it meets minimum slippage requirement.
             1. Get adapters for `fromVaultAsset` and `toVaultAsset`.
             2. Calls `fromAdapter.previewConvertFromVaultAsset` to get `dStableValueIn` from `fromVaultAssetAmount`.
@@ -72,9 +76,11 @@ dSTAKE allows users to stake a dSTABLE token (like dUSD) to earn yield. The depo
             5. Pulls `fromVaultAssetAmount` of `fromVaultAsset` from solver (`msg.sender`).
             6. Transfers `fromVaultAsset` to `collateralVault`.
             7. Calls `collateralVault.sendAsset()` to send `calculatedToVaultAssetAmount` of `toVaultAsset` to the solver (`msg.sender`).
-        *   `addAdapter(address vaultAsset, address adapterAddress)`: Governance (`stakeToken` admin).
-        *   `removeAdapter(address vaultAsset)`: Governance (`stakeToken` admin).
-        *   `setDefaultDepositVaultAsset(address vaultAsset)`: Governance (`stakeToken` admin).
+        *   `addAdapter(address vaultAsset, address adapterAddress)`: `onlyRole(DEFAULT_ADMIN_ROLE)`.
+        *   `removeAdapter(address vaultAsset)`: `onlyRole(DEFAULT_ADMIN_ROLE)`.
+        *   `setDefaultDepositVaultAsset(address vaultAsset)`: `onlyRole(DEFAULT_ADMIN_ROLE)`.
+        *   `addCollateralExchanger(address exchanger)`: `onlyRole(DEFAULT_ADMIN_ROLE)`.
+        *   `removeCollateralExchanger(address exchanger)`: `onlyRole(DEFAULT_ADMIN_ROLE)`.
 
 4.  **`IDStableConversionAdapter.sol` (Interface)**
     *   **Purpose:** Standard interface for converting dSTABLE asset <=> specific `vault asset` and valuing the `vault asset`.
@@ -102,7 +108,7 @@ dSTAKE allows users to stake a dSTABLE token (like dUSD) to earn yield. The depo
 *   **Modularity:** Replaceable contracts (`CollateralVault`, `Router`, `Adapters`) for complex logic, avoiding core upgrades.
 *   **Generic Assets:** Supports any ERC20 (`vault asset`) convertible to/from dSTABLE via Adapters.
 *   **Value Accrual:** Share value tracks `totalAssets()` relative to supply.
-*   **Withdrawal Fee:** Configurable fee in `dStakeToken`.
-*   **Rebalancing:** Dedicated `exchangeAssets` in `Router` via `COLLATERAL_EXCHANGER_ROLE`.
+*   **Withdrawal Fee:** Configurable fee in `dStakeToken`, managed by `FEE_MANAGER_ROLE`.
+*   **Rebalancing:** Dedicated `exchangeAssets*` functions in `Router`, managed by `COLLATERAL_EXCHANGER_ROLE`.
 *   **Error Handling:** Revert with details on failure.
-*   **Access Control:** Managed by `dStakeToken`.
+*   **Access Control:** `dStakeToken` manages its own roles (`DEFAULT_ADMIN_ROLE`, `FEE_MANAGER_ROLE`). `DStakeCollateralVault` has its own `DEFAULT_ADMIN_ROLE` and `ROUTER_ROLE`. `DStakeRouter` has its own `DEFAULT_ADMIN_ROLE`, `DSTAKE_TOKEN_ROLE`, and `COLLATERAL_EXCHANGER_ROLE`.

@@ -71,7 +71,7 @@ contract DStakeRouter is IDStakeRouter, AccessControl {
         }
 
         // Setup roles
-        _grantRole(DEFAULT_ADMIN_ROLE, _DStakeToken);
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(DSTAKE_TOKEN_ROLE, _DStakeToken);
     }
 

@@ -45,6 +45,14 @@ export async function getConfig(
   const scUSDDeployment = await _hre.deployments.getOrNull("scUSD");
   const wstkscUSDDeployment = await _hre.deployments.getOrNull("wstkscUSD");
 
+  // Fetch deployed dLend StaticATokenLM wrappers
+  const dLend_ATokenWrapper_dUSD_Deployment = await _hre.deployments.getOrNull(
+    "dLend_ATokenWrapper_dUSD"
+  );
+  const dLend_ATokenWrapper_dS_Deployment = await _hre.deployments.getOrNull(
+    "dLend_ATokenWrapper_dS"
+  );
+
   // Get mock oracle deployments
   const mockOracleNameToAddress: Record<string, string> = {};
 
@@ -369,12 +377,14 @@ export async function getConfig(
         initialWithdrawalFeeBps: 10,
         adapters: [
           {
-            vaultAsset: emptyStringIfUndefined(wstkscUSDDeployment?.address),
+            vaultAsset: emptyStringIfUndefined(
+              dLend_ATokenWrapper_dUSD_Deployment?.address
+            ),
             adapterContract: "WrappedDLendConversionAdapter",
           },
         ],
         defaultDepositVaultAsset: emptyStringIfUndefined(
-          wstkscUSDDeployment?.address
+          dLend_ATokenWrapper_dUSD_Deployment?.address
         ),
         collateralVault: "dStakeCollateralVault_sdUSD",
         collateralExchangers: [user1],
@@ -388,12 +398,14 @@ export async function getConfig(
         initialWithdrawalFeeBps: 10,
         adapters: [
           {
-            vaultAsset: emptyStringIfUndefined(stSTokenDeployment?.address),
+            vaultAsset: emptyStringIfUndefined(
+              dLend_ATokenWrapper_dS_Deployment?.address
+            ),
             adapterContract: "WrappedDLendConversionAdapter",
           },
         ],
         defaultDepositVaultAsset: emptyStringIfUndefined(
-          stSTokenDeployment?.address
+          dLend_ATokenWrapper_dS_Deployment?.address
         ),
         collateralVault: "dStakeCollateralVault_sdS",
         collateralExchangers: [user1],

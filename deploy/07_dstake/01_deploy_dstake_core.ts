@@ -11,9 +11,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
 
-  console.log("-----------------------------------------------------");
-  console.log("Deploying dSTAKE Core Contracts...");
-
   const config = await getConfig(hre);
 
   if (!config.dStake) {
@@ -90,7 +87,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const dStakeTokenDeploymentName = `dStakeToken_${instanceKey}`;
     const dStakeTokenDeployment = await deploy(dStakeTokenDeploymentName, {
       from: deployer,
-      contract: "dStakeToken",
+      contract: "DStakeToken",
       args: [
         instanceConfig.dStable,
         instanceConfig.name,
@@ -109,7 +106,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       collateralVaultDeploymentName,
       {
         from: deployer,
-        contract: "dStakeCollateralVault",
+        contract: "DStakeCollateralVault",
         args: [dStakeTokenDeployment.address, instanceConfig.dStable],
         log: false,
       }
@@ -118,20 +115,78 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       `    Deployed ${collateralVaultDeploymentName} at ${collateralVaultDeployment.address}`
     );
 
+    // --- Grant initial roles ---
+    // Grant DEFAULT_ADMIN_ROLE on CollateralVault to the configured initialAdmin
+    const collateralVault = await hre.ethers.getContractAt(
+      "DStakeCollateralVault",
+      collateralVaultDeployment.address
+    );
+    const adminRole = ethers.ZeroHash; // DEFAULT_ADMIN_ROLE is bytes32(0)
+    const hasAdminRole = await collateralVault.hasRole(
+      adminRole,
+      instanceConfig.initialAdmin
+    );
+    if (!hasAdminRole) {
+      const tx = await collateralVault.grantRole(
+        adminRole,
+        instanceConfig.initialAdmin
+      );
+      await tx.wait(); // Wait for the transaction to be mined
+      console.log(
+        `      Granted DEFAULT_ADMIN_ROLE on ${collateralVaultDeploymentName} to ${instanceConfig.initialAdmin}`
+      );
+    } else {
+      console.log(
+        `      Skipping: ${instanceConfig.initialAdmin} already has DEFAULT_ADMIN_ROLE on ${collateralVaultDeploymentName}`
+      );
+    }
+    // Note: DStakeToken grants admin/fee roles in its constructor based on config
+
     const routerDeploymentName = `dStakeRouter_${instanceKey}`;
     const routerDeployment = await deploy(routerDeploymentName, {
       from: deployer,
-      contract: "dStakeRouter",
+      contract: "DStakeRouter",
       args: [dStakeTokenDeployment.address, collateralVaultDeployment.address],
       log: false,
     });
     console.log(
       `    Deployed ${routerDeploymentName} at ${routerDeployment.address}`
     );
+
+    // --- Grant Router Admin Role to Initial Admin ---
+    // Router's DEFAULT_ADMIN_ROLE is initially msg.sender (deployer)
+    const router = await hre.ethers.getContractAt(
+      "DStakeRouter",
+      routerDeployment.address
+    );
+    const routerAdminRole = ethers.ZeroHash; // DEFAULT_ADMIN_ROLE is bytes32(0)
+
+    // Grant the role from deployer to initialAdmin
+    const hasRouterAdminRole = await router.hasRole(
+      routerAdminRole,
+      instanceConfig.initialAdmin
+    );
+    if (!hasRouterAdminRole) {
+      const grantTx = await router
+        .connect(await hre.ethers.getSigner(deployer)) // Ensure tx is from deployer
+        .grantRole(routerAdminRole, instanceConfig.initialAdmin);
+      await grantTx.wait();
+      console.log(
+        `      Granted Router DEFAULT_ADMIN_ROLE from deployer to ${instanceConfig.initialAdmin}`
+      );
+
+      // Optional: Renounce the role from the deployer if it's no longer needed
+      // const renounceTx = await router.connect(await hre.ethers.getSigner(deployer)).renounceRole(routerAdminRole, deployer);
+      // await renounceTx.wait();
+      // console.log(`      Renounced Router DEFAULT_ADMIN_ROLE from deployer`);
+    } else {
+      console.log(
+        `      Skipping: ${instanceConfig.initialAdmin} already has Router DEFAULT_ADMIN_ROLE`
+      );
+    }
   }
 
-  console.log("dSTAKE Core Contracts Deployed!");
-  console.log("-----------------------------------------------------");
+  console.log(`🥩 ${__filename.split("/").slice(-2).join("/")}: ✅`);
 };
 
 export default func;
