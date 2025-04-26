@@ -80,5 +80,10 @@ export const PULL_REWARDS_TRANSFER_STRATEGY_ID = "PullRewardsTransferStrategy";
 export const ORACLE_AGGREGATOR_WRAPPER_BASE_ID =
   "oracle-aggregator-wrapper-base";
 
-// Vaults
-export const DLEND_STATIC_A_TOKEN_FACTORY_ID = "dlend-static-a-token-factory";
+// Wrapped dLEND ATokens
+export const DLEND_STATIC_A_TOKEN_FACTORY_ID = "dLend_StaticATokenFactory";
+const DLEND_A_TOKEN_WRAPPER_PREFIX = "dLend_ATokenWrapper";
+export const DUSD_A_TOKEN_WRAPPER_ID = `${DLEND_A_TOKEN_WRAPPER_PREFIX}_dUSD`;
+export const DS_A_TOKEN_WRAPPER_ID = `${DLEND_A_TOKEN_WRAPPER_PREFIX}_dS`;
+
+// dSTAKE

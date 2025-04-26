@@ -24,14 +24,14 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       contract: "StaticATokenFactory",
       autoMine: true,
       log: false,
-    },
+    }
   );
 
   if (staticATokenFactoryDeployment.newlyDeployed) {
     // Get contract instances
     const staticATokenFactory = await ethers.getContractAt(
       "StaticATokenFactory",
-      staticATokenFactoryDeployment.address,
+      staticATokenFactoryDeployment.address
     );
     const pool = await ethers.getContractAt("IPool", poolAddress);
 
@@ -50,14 +50,14 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       ) {
         const reservesChunk = chunkedReserves[chunkIndex];
         console.log(
-          `Processing chunk ${chunkIndex + 1}/${chunkedReserves.length} with ${reservesChunk.length} reserves`,
+          `Processing chunk ${chunkIndex + 1}/${chunkedReserves.length} with ${reservesChunk.length} reserves`
         );
 
         try {
           // Manually encode the function data
           const callData = staticATokenFactory.interface.encodeFunctionData(
             "createStaticATokens",
-            [reservesChunk],
+            [reservesChunk]
           );
           // Send a raw transaction
           const tx = await signer.sendTransaction({
@@ -67,25 +67,25 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
           await tx.wait();
 
           console.log(
-            `  Successfully created StaticATokens for chunk ${chunkIndex + 1}`,
+            `  Successfully created StaticATokens for chunk ${chunkIndex + 1}`
           );
 
           for (const asset of reservesChunk) {
             const staticToken =
               await staticATokenFactory.getStaticAToken(asset);
             console.log(
-              `  - Created StaticAToken for ${asset}: ${staticToken}`,
+              `  - Created StaticAToken for ${asset}: ${staticToken}`
             );
           }
         } catch (error: any) {
           console.error(
-            `  Failed to create StaticATokens for chunk ${chunkIndex + 1}: ${error.message || String(error)}`,
+            `  Failed to create StaticATokens for chunk ${chunkIndex + 1}: ${error.message || String(error)}`
           );
         }
       }
     } else {
       console.log(
-        "No reserves found in the Pool, skipping createStaticATokens",
+        "No reserves found in the Pool, skipping createStaticATokens"
       );
     }
   }
@@ -96,7 +96,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 };
 
 func.id = DLEND_STATIC_A_TOKEN_FACTORY_ID;
-func.tags = ["dlend", "dlend-static-wrappers"];
+func.tags = ["dlend-static-wrapper-factory"];
 func.dependencies = [POOL_PROXY_ID];
 
 export default func;
