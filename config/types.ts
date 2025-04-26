@@ -16,6 +16,9 @@ export interface Config {
   readonly odos?: {
     readonly router: string;
   };
+  readonly dStake?: {
+    [key: string]: DStakeInstanceConfig; // e.g., sdUSD, sdS
+  };
 }
 
 // Configuration for mocking infrastructure on local and test networks
@@ -135,4 +138,24 @@ export interface IReserveParams
   readonly reserveFactor: string;
   readonly supplyCap: string;
   readonly strategy: IInterestRateStrategyParams;
+}
+
+// --- dStake Types ---
+
+export interface DStakeAdapterConfig {
+  readonly vaultAsset: Address; // Address of the vault asset (e.g., wddUSD)
+  readonly adapterContract: string; // Contract name for deployment (e.g., dLendConversionAdapter)
+}
+
+export interface DStakeInstanceConfig {
+  readonly dStable: Address; // Address of the underlying dSTABLE (e.g., dUSD)
+  readonly name: string; // Name for dStakeToken (e.g., "Staked dUSD")
+  readonly symbol: string; // Symbol for dStakeToken (e.g., "sdUSD")
+  readonly initialAdmin: Address;
+  readonly initialFeeManager: Address;
+  readonly initialWithdrawalFeeBps: number;
+  readonly adapters: DStakeAdapterConfig[]; // List of supported adapters/vault assets
+  readonly defaultDepositVaultAsset: Address; // Initial default vault asset for deposits
+  readonly collateralExchangers: Address[]; // List of allowed exchanger addresses
+  readonly collateralVault?: Address; // The dStakeCollateralVault for this instance (needed for adapter deployment)
 }
