@@ -4,19 +4,19 @@ pragma solidity ^0.8.20;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
-import {IdStakeRouter} from "./interfaces/IdStakeRouter.sol";
-import {IdStableConversionAdapter} from "./interfaces/IdStableConversionAdapter.sol";
-import {dStakeCollateralVault} from "./dStakeCollateralVault.sol"; // Using concrete type for interactions
+import {IDStakeRouter} from "./interfaces/IDStakeRouter.sol";
+import {IDStableConversionAdapter} from "./interfaces/IDStableConversionAdapter.sol";
+import {DStakeCollateralVault} from "./DStakeCollateralVault.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 /**
  * @title dStakeRouter
  * @notice Orchestrates deposits, withdrawals, and asset exchanges for a dStakeToken vault.
- * @dev Interacts with the dStakeToken, dStakeCollateralVault, and various IDStableConversionAdapters.
+ * @dev Interacts with the dStakeToken, dStakeCollateralVault, and various IdStableConversionAdapters.
  *      This contract is non-upgradeable but replaceable via dStakeToken governance.
  *      Relies on the associated dStakeToken for role management.
  */
-contract dStakeRouter is IdStakeRouter, AccessControl {
+contract DStakeRouter is IDStakeRouter, AccessControl {
     using SafeERC20 for IERC20;
 
     // --- Errors ---
@@ -51,34 +51,34 @@ contract dStakeRouter is IdStakeRouter, AccessControl {
         keccak256("COLLATERAL_EXCHANGER_ROLE");
 
     // --- State ---
-    address public immutable dStakeToken; // The dStakeToken this router serves
-    dStakeCollateralVault public immutable collateralVault; // The dStakeCollateralVault this router serves
+    address public immutable DStakeToken; // The DStakeToken this router serves
+    DStakeCollateralVault public immutable collateralVault; // The DStakeCollateralVault this router serves
     address public immutable dStable; // The underlying dSTABLE asset address
 
     mapping(address => address) public vaultAssetToAdapter; // vaultAsset => adapterAddress
     address public defaultDepositVaultAsset; // Default strategy for deposits
 
     // --- Constructor ---
-    constructor(address _dStakeToken, address _collateralVault) {
-        if (_dStakeToken == address(0) || _collateralVault == address(0)) {
+    constructor(address _DStakeToken, address _collateralVault) {
+        if (_DStakeToken == address(0) || _collateralVault == address(0)) {
             revert ZeroAddress();
         }
-        dStakeToken = _dStakeToken;
-        collateralVault = dStakeCollateralVault(_collateralVault);
+        DStakeToken = _DStakeToken;
+        collateralVault = DStakeCollateralVault(_collateralVault);
         dStable = collateralVault.dStable(); // Fetch dStable address from vault
         if (dStable == address(0)) {
             revert ZeroAddress();
         }
 
         // Setup roles
-        _grantRole(DEFAULT_ADMIN_ROLE, _dStakeToken);
-        _grantRole(DSTAKE_TOKEN_ROLE, _dStakeToken);
+        _grantRole(DEFAULT_ADMIN_ROLE, _DStakeToken);
+        _grantRole(DSTAKE_TOKEN_ROLE, _DStakeToken);
     }
 
-    // --- External Functions (IdStakeRouter Interface) ---
+    // --- External Functions (IDStakeRouter Interface) ---
 
     /**
-     * @inheritdoc IdStakeRouter
+     * @inheritdoc IDStakeRouter
      */
     function deposit(
         uint256 dStableAmount,
@@ -89,7 +89,7 @@ contract dStakeRouter is IdStakeRouter, AccessControl {
             revert AdapterNotFound(defaultDepositVaultAsset);
         }
 
-        // 1. Pull dStableAmount from dStakeToken (caller)
+        // 1. Pull dStableAmount from DStakeToken (caller)
         IERC20(dStable).safeTransferFrom(
             msg.sender,
             address(this),
@@ -104,7 +104,7 @@ contract dStakeRouter is IdStakeRouter, AccessControl {
         (
             address vaultAsset,
             uint256 vaultAssetAmount
-        ) = IdStableConversionAdapter(adapterAddress).convertToVaultAsset(
+        ) = IDStableConversionAdapter(adapterAddress).convertToVaultAsset(
                 dStableAmount
             );
 
@@ -112,7 +112,7 @@ contract dStakeRouter is IdStakeRouter, AccessControl {
     }
 
     /**
-     * @inheritdoc IdStakeRouter
+     * @inheritdoc IDStakeRouter
      */
     function withdraw(
         uint256 dStableAmount,
@@ -123,7 +123,7 @@ contract dStakeRouter is IdStakeRouter, AccessControl {
         if (adapterAddress == address(0)) {
             revert AdapterNotFound(defaultDepositVaultAsset);
         }
-        IdStableConversionAdapter adapter = IdStableConversionAdapter(
+        IDStableConversionAdapter adapter = IDStableConversionAdapter(
             adapterAddress
         );
 
@@ -190,10 +190,10 @@ contract dStakeRouter is IdStakeRouter, AccessControl {
         if (toAdapterAddress == address(0))
             revert AdapterNotFound(toVaultAsset);
 
-        IdStableConversionAdapter fromAdapter = IdStableConversionAdapter(
+        IDStableConversionAdapter fromAdapter = IDStableConversionAdapter(
             fromAdapterAddress
         );
-        IdStableConversionAdapter toAdapter = IdStableConversionAdapter(
+        IDStableConversionAdapter toAdapter = IDStableConversionAdapter(
             toAdapterAddress
         );
 
@@ -266,10 +266,10 @@ contract dStakeRouter is IdStakeRouter, AccessControl {
         if (toAdapterAddress == address(0))
             revert AdapterNotFound(toVaultAsset);
 
-        IdStableConversionAdapter fromAdapter = IdStableConversionAdapter(
+        IDStableConversionAdapter fromAdapter = IDStableConversionAdapter(
             fromAdapterAddress
         );
-        IdStableConversionAdapter toAdapter = IdStableConversionAdapter(
+        IDStableConversionAdapter toAdapter = IDStableConversionAdapter(
             toAdapterAddress
         );
 
@@ -352,7 +352,7 @@ contract dStakeRouter is IdStakeRouter, AccessControl {
         if (adapterAddress == address(0) || vaultAsset == address(0)) {
             revert ZeroAddress();
         }
-        address adapterVaultAsset = IdStableConversionAdapter(adapterAddress)
+        address adapterVaultAsset = IDStableConversionAdapter(adapterAddress)
             .vaultAsset();
         if (adapterVaultAsset != vaultAsset)
             revert AdapterAssetMismatch(

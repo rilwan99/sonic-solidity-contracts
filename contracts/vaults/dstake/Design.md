@@ -32,7 +32,7 @@ dSTAKE allows users to stake a dSTABLE token (like dUSD) to earn yield. The depo
         *   `adapterForAsset`: `mapping(address vaultAsset => address adapter)`. Maps `vault asset` to its `IDStableConversionAdapter`. Managed by `stakeToken` admin.
         *   `supportedAssets`: `address[]`. List of `vault asset` addresses. Managed by `stakeToken` admin.
     *   **Key Functions:**
-        *   `getTotalAssetValue() returns (uint256 dStableValue)`: Iterates `supportedAssets`, calls `adapter.getAssetValue()` for each, sums results. View.
+        *   `getTotalAssetValue() returns (uint256 dStableValue)`: Iterates `supportedAssets`, calls `adapter.assetValueInDStable()` for each, sums results. View.
         *   `sendAsset(address vaultAsset, uint256 amount, address recipient)`: Sends `vaultAsset`. `onlyRouter`.
         *   `addAdapter(address vaultAsset, address adapterAddress)`: Governance (`stakeToken` admin) to add asset/adapter.
         *   `removeAdapter(address vaultAsset)`: Governance (`stakeToken` admin) to remove asset/adapter (requires zero balance).
@@ -80,14 +80,16 @@ dSTAKE allows users to stake a dSTABLE token (like dUSD) to earn yield. The depo
     *   **Purpose:** Standard interface for converting dSTABLE asset <=> specific `vault asset` and valuing the `vault asset`.
     *   **Key Functions:**
         *   `convertToVaultAsset(uint256 dStableAmount) returns (address vaultAsset, uint256 vaultAssetAmount)`: Converts dSTABLE (pulled from caller) into `vaultAsset`, sending result to `collateralVault`.
-        *   `convertFromVaultAsset(uint256 dStableAmount, address receiver) returns (uint256 convertedDStableAmount)`: Converts `vaultAsset` (pulled from caller) back to dSTABLE, sending `dStableAmount` to `receiver`.
-        *   `getAssetValue(address vaultAsset, uint256 vaultAssetAmount) view returns (uint256 dStableValue)`: Calculates the value of `vaultAssetAmount` in terms of the dSTABLE asset.
-        *   `getVaultAsset() view returns (address)`: Returns the specific `vault asset` address managed by this adapter.
+        *   `convertFromVaultAsset(uint256 vaultAssetAmount) returns (uint256 dStableAmount)`: Converts `vaultAsset` (pulled from caller) back to dSTABLE, sending `dStableAmount` to caller.
+        *   `previewConvertToVaultAsset(uint256 dStableAmount) view returns (address vaultAsset, uint256 vaultAssetAmount)`: Preview conversion result.
+        *   `previewConvertFromVaultAsset(uint256 vaultAssetAmount) view returns (uint256 dStableAmount)`: Preview conversion result.
+        *   `assetValueInDStable(address vaultAsset, uint256 vaultAssetAmount) view returns (uint256 dStableValue)`: Calculates the value of `vaultAssetAmount` in terms of the dSTABLE asset.
+        *   `vaultAsset() view returns (address)`: Returns the specific `vault asset` address managed by this adapter.
 
-5.  **`dLendConversionAdapter.sol` (Example Implementation)**
+5.  **`WrappedDLendConversionAdapter.sol` (Example Implementation)**
     *   **Purpose:** Implements `IDStableConversionAdapter` for a wrapped dLEND `aToken` (e.g., `wddUSD`). Wrapped using StaticATokenLM.sol
     *   **State:** Protocol addresses (`dLendLendingPool`), asset addresses (`dUSD`, `wddUSD`), `collateralVault` address.
-    *   **Logic:** Wraps/unwraps dUSD/`wddUSD`, deposits/withdraws from dLEND (on behalf of `collateralVault`), uses appropriate rates for `getAssetValue`.
+    *   **Logic:** Wraps/unwraps dUSD/`wddUSD`, deposits/withdraws from dLEND (on behalf of `collateralVault`), uses appropriate rates for `assetValueInDStable`.
 
 **Flow Summary:**
 

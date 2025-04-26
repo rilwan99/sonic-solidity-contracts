@@ -3,19 +3,19 @@ pragma solidity ^0.8.20;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IdStakeCollateralVault} from "./interfaces/IdStakeCollateralVault.sol";
-import {IdStableConversionAdapter} from "./interfaces/IdStableConversionAdapter.sol";
+import {IDStakeCollateralVault} from "./interfaces/IDStakeCollateralVault.sol";
+import {IDStableConversionAdapter} from "./interfaces/IDStableConversionAdapter.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
 /**
  * @title dStakeCollateralVault
  * @notice Holds various yield-bearing/convertible ERC20 tokens (`vault assets`) managed by dSTAKE.
- * @dev Calculates the total value of these assets in terms of the underlying dSTABLE asset
+ * @dev Calculates the total value of these assets in terms of the underlying dStable asset
  *      using registered adapters. This contract is non-upgradeable but replaceable via
  *      dStakeToken governance.
  *      Uses AccessControl for role-based access control.
  */
-contract dStakeCollateralVault is IdStakeCollateralVault, AccessControl {
+contract DStakeCollateralVault is IDStakeCollateralVault, AccessControl {
     using SafeERC20 for IERC20;
 
     // --- Roles ---
@@ -30,30 +30,30 @@ contract dStakeCollateralVault is IdStakeCollateralVault, AccessControl {
     error NonZeroBalance(address asset);
 
     // --- State ---
-    address public immutable dStakeToken; // The dStakeToken this vault serves
-    address public immutable dStable; // The underlying dSTABLE asset address
+    address public immutable DStakeToken; // The DStakeToken this vault serves
+    address public immutable dStable; // The underlying dStable asset address
 
-    address public router; // The dStakeRouter allowed to interact
+    address public router; // The DStakeRouter allowed to interact
 
     mapping(address => address) public adapterForAsset; // vaultAsset => adapter
     address[] public supportedAssets; // List of supported vault assets
 
     // --- Constructor ---
-    constructor(address _dStakeVaultShare, address _dStableAsset) {
-        if (_dStakeVaultShare == address(0) || _dStableAsset == address(0)) {
+    constructor(address _DStakeVaultShare, address _dStableAsset) {
+        if (_DStakeVaultShare == address(0) || _dStableAsset == address(0)) {
             revert ZeroAddress();
         }
-        dStakeToken = _dStakeVaultShare;
+        DStakeToken = _DStakeVaultShare;
         dStable = _dStableAsset;
 
         // Set up the DEFAULT_ADMIN_ROLE initially to the contract deployer
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    // --- External Views (IdStakeCollateralVault Interface) ---
+    // --- External Views (IDStakeCollateralVault Interface) ---
 
     /**
-     * @inheritdoc IdStakeCollateralVault
+     * @inheritdoc IDStakeCollateralVault
      */
     function totalValueInDStable()
         external
@@ -68,7 +68,7 @@ contract dStakeCollateralVault is IdStakeCollateralVault, AccessControl {
             if (adapterAddress != address(0)) {
                 uint256 balance = IERC20(vaultAsset).balanceOf(address(this));
                 if (balance > 0) {
-                    totalValue += IdStableConversionAdapter(adapterAddress)
+                    totalValue += IDStableConversionAdapter(adapterAddress)
                         .assetValueInDStable(vaultAsset, balance);
                 }
             }
@@ -99,7 +99,7 @@ contract dStakeCollateralVault is IdStakeCollateralVault, AccessControl {
     // --- External Functions (Governance) ---
 
     /**
-     * @notice Sets the address of the dStakeRouter contract.
+     * @notice Sets the address of the DStakeRouter contract.
      * @dev Only callable by an address with the DEFAULT_ADMIN_ROLE.
      * @param _newRouter The address of the new router contract.
      */
@@ -126,7 +126,7 @@ contract dStakeCollateralVault is IdStakeCollateralVault, AccessControl {
      * @notice Adds support for a new `vaultAsset` and its associated conversion adapter.
      * @dev Only callable by an address with the DEFAULT_ADMIN_ROLE.
      * @param vaultAsset The address of the new vault asset to support.
-     * @param adapterAddress The address of the IDStableConversionAdapter for this asset.
+     * @param adapterAddress The address of the IdStableConversionAdapter for this asset.
      */
     function addAdapter(
         address vaultAsset,
@@ -140,7 +140,7 @@ contract dStakeCollateralVault is IdStakeCollateralVault, AccessControl {
         }
 
         // Validate adapter interface and asset match
-        try IdStableConversionAdapter(adapterAddress).vaultAsset() returns (
+        try IDStableConversionAdapter(adapterAddress).vaultAsset() returns (
             address reportedAsset
         ) {
             if (reportedAsset != vaultAsset) {
