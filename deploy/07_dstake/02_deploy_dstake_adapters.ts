@@ -71,7 +71,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   for (const instanceKey in config.dStake) {
     const instanceConfig = config.dStake[instanceKey] as DStakeInstanceConfig;
     const dStableSymbol = instanceConfig.symbol;
-    console.log(`  Deploying adapters for dSTAKE instance: ${instanceKey}`);
 
     // Get the collateral vault address from deployment
     const collateralVaultDeploymentName = `dStakeCollateralVault_${instanceKey}`;
@@ -90,20 +89,13 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       const { adapterContract, vaultAsset } = adapterConfig;
       if (adapterContract === "WrappedDLendConversionAdapter") {
         const deploymentName = `${adapterContract}_${dStableSymbol}`;
-        console.log(`    Deploying ${deploymentName}...`);
+        // console.log(`    Deploying ${deploymentName}...`);
         await deploy(deploymentName, {
           from: deployer,
           contract: adapterContract,
           args: [instanceConfig.dStable, vaultAsset, collateralVault.address],
-          log: false,
+          log: true,
         });
-        const deployed = await deployments.get(deploymentName);
-        console.log(`    Deployed ${deploymentName} at ${deployed.address}`);
-      } else {
-        const deploymentName = `${adapterContract}_${dStableSymbol}`;
-        console.log(
-          `    Skipping adapter ${deploymentName} (type not supported or dependencies missing)`
-        );
       }
     }
   }

@@ -53,7 +53,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       tokenAddresses.dUSD
     );
     dUSDAToken = dUSDReserveData.aTokenAddress;
-    console.log(`Found dUSD aToken at ${dUSDAToken}`);
   } catch (error: any) {
     console.log(`Error getting dUSD aToken: ${error.message}`);
     return;
@@ -62,7 +61,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   try {
     const dSReserveData = await poolContract.getReserveData(tokenAddresses.dS);
     dSAToken = dSReserveData.aTokenAddress;
-    console.log(`Found dS aToken at ${dSAToken}`);
   } catch (error: any) {
     console.log(`Error getting dS aToken: ${error.message}`);
     return;
@@ -76,7 +74,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     );
     const dUSDATokenSymbol = await dUSDATokenContract.symbol();
 
-    console.log(`Deploying StaticATokenLM wrapper for ${dUSDATokenSymbol}...`);
+    // console.log(`Deploying StaticATokenLM wrapper for ${dUSDATokenSymbol}...`);
 
     await deploy(DUSD_A_TOKEN_WRAPPER_ID, {
       from: deployer,
@@ -88,13 +86,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         `Static ${dUSDATokenSymbol}`,
         `stk${dUSDATokenSymbol}`,
       ],
-      log: true,
     });
-
-    const dUSDATokenWrapper = await deployments.get(DUSD_A_TOKEN_WRAPPER_ID);
-    console.log(
-      `Deployed ${DUSD_A_TOKEN_WRAPPER_ID} at ${dUSDATokenWrapper.address}`
-    );
   } else {
     console.log(
       "dUSD aToken not found or invalid, skipping wrapper deployment"
@@ -119,13 +111,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         `Static ${dSATokenSymbol}`,
         `stk${dSATokenSymbol}`,
       ],
-      log: true,
     });
-
-    const dSATokenWrapper = await deployments.get(DS_A_TOKEN_WRAPPER_ID);
-    console.log(
-      `Deployed ${DS_A_TOKEN_WRAPPER_ID} at ${dSATokenWrapper.address}`
-    );
   } else {
     console.log("dS aToken not found or invalid, skipping wrapper deployment");
   }

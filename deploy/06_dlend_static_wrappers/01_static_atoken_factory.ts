@@ -23,7 +23,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       args: [poolAddress], // pool address only
       contract: "StaticATokenFactory",
       autoMine: true,
-      log: false,
     }
   );
 
@@ -49,9 +48,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         chunkIndex++
       ) {
         const reservesChunk = chunkedReserves[chunkIndex];
-        console.log(
-          `Processing chunk ${chunkIndex + 1}/${chunkedReserves.length} with ${reservesChunk.length} reserves`
-        );
 
         try {
           // Manually encode the function data
@@ -65,18 +61,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
             data: callData,
           });
           await tx.wait();
-
-          console.log(
-            `  Successfully created StaticATokens for chunk ${chunkIndex + 1}`
-          );
-
-          for (const asset of reservesChunk) {
-            const staticToken =
-              await staticATokenFactory.getStaticAToken(asset);
-            console.log(
-              `  - Created StaticAToken for ${asset}: ${staticToken}`
-            );
-          }
         } catch (error: any) {
           console.error(
             `  Failed to create StaticATokens for chunk ${chunkIndex + 1}: ${error.message || String(error)}`

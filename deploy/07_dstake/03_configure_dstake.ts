@@ -99,7 +99,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       initialFeeManager === deployer ? deployer : initialFeeManager;
 
     // --- Configure dStakeToken ---
-    console.log(`    Configuring ${dStakeTokenDeploymentName}...`);
     const currentRouter = await read(dStakeTokenDeploymentName, "router");
     if (currentRouter !== routerDeployment.address) {
       await execute(
@@ -138,7 +137,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     }
 
     // --- Configure dStakeCollateralVault ---
-    console.log(`    Configuring ${collateralVaultDeploymentName}...`);
     const vaultRouter = await read(collateralVaultDeploymentName, "router");
     const vaultRouterRole = await read(
       collateralVaultDeploymentName,
@@ -169,9 +167,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         vaultAssetAddress
       );
       if (currentAdapter !== adapterDeployment.address) {
-        console.log(
-          `      Adding adapter ${adapterDeploymentName} for asset ${vaultAssetAddress}`
-        );
         await execute(
           collateralVaultDeploymentName,
           { from: adminSigner, log: false },
@@ -183,7 +178,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     }
 
     // --- Configure dStakeRouter ---
-    console.log(`    Configuring ${routerDeploymentName}...`);
     const routerAdminRole = await read(
       routerDeploymentName,
       "DEFAULT_ADMIN_ROLE"
@@ -203,9 +197,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         vaultAssetAddress
       );
       if (currentAdapter !== adapterDeployment.address) {
-        console.log(
-          `      Adding adapter ${adapterDeploymentName} for asset ${vaultAssetAddress} to Router`
-        );
         await execute(
           routerDeploymentName,
           { from: adminSigner, log: false },
@@ -221,9 +212,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       "defaultDepositVaultAsset"
     );
     if (currentDefaultAsset !== instanceConfig.defaultDepositVaultAsset) {
-      console.log(
-        `      Setting default deposit asset to ${instanceConfig.defaultDepositVaultAsset}`
-      );
       await execute(
         routerDeploymentName,
         { from: adminSigner, log: false },
@@ -240,7 +228,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         exchanger
       );
       if (!hasRole) {
-        console.log(`      Granting COLLATERAL_EXCHANGER_ROLE to ${exchanger}`);
         await execute(
           routerDeploymentName,
           { from: adminSigner, log: false },
