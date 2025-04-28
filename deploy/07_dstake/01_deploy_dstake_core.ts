@@ -161,4 +161,4 @@ export default func;
 func.tags = ["dStakeCore", "dStake"];
 // Depends on adapters being deployed if adapters need to be configured *during* core deployment (unlikely)
 // Primarily depends on the underlying dStable tokens being deployed.
-func.dependencies = ["dStable", "Mocks"]; // Ensure dUSD/dS are deployed
+func.dependencies = ["dStable", "dUSD-aTokenWrapper", "dS-aTokenWrapper"]; // Ensure dUSD/dS and their wrapped tokens are deployed

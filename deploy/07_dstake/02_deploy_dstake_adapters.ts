@@ -67,13 +67,16 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     }
   }
 
-  // All configs are valid, proceed with deployment
+  // All configs are valid, proceed with adapter deployment
   for (const instanceKey in config.dStake) {
     const instanceConfig = config.dStake[instanceKey] as DStakeInstanceConfig;
     const dStableSymbol = instanceConfig.symbol;
 
-    // Get the collateral vault address from deployment
+    // We need references to the router and collateral vault
     const collateralVaultDeploymentName = `dStakeCollateralVault_${instanceKey}`;
+    const routerDeploymentName = `dStakeRouter_${instanceKey}`;
+
+    // Get the collateral vault address from deployment
     const collateralVault = await deployments.getOrNull(
       collateralVaultDeploymentName
     );
@@ -105,4 +108,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
 export default func;
 func.tags = ["dStakeAdapters", "dStake"];
-func.dependencies = ["dStakeCore", "dLendCore", "Mocks"];
+func.dependencies = [
+  "dStakeCore",
+  "dLendCore",
+  "dUSD-aTokenWrapper",
+  "dS-aTokenWrapper",
+];

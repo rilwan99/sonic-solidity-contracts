@@ -82,8 +82,14 @@ export const ORACLE_AGGREGATOR_WRAPPER_BASE_ID =
 
 // Wrapped dLEND ATokens
 export const DLEND_STATIC_A_TOKEN_FACTORY_ID = "dLend_StaticATokenFactory";
-const DLEND_A_TOKEN_WRAPPER_PREFIX = "dLend_ATokenWrapper";
+export const DLEND_A_TOKEN_WRAPPER_PREFIX = "dLend_ATokenWrapper";
 export const DUSD_A_TOKEN_WRAPPER_ID = `${DLEND_A_TOKEN_WRAPPER_PREFIX}_dUSD`;
 export const DS_A_TOKEN_WRAPPER_ID = `${DLEND_A_TOKEN_WRAPPER_PREFIX}_dS`;
 
-// dSTAKE
+// dSTAKE deployment tag
+export const DSTAKE_DEPLOYMENT_TAG = "dStake"; // Define the deployment tag
+
+// dSTAKE IDs (using sdUSD as example prefix, adjust if needed for dS)
+export const SDUSD_DSTAKE_TOKEN_ID = "dStakeToken_sdUSD";
+export const SDUSD_COLLATERAL_VAULT_ID = "dStakeCollateralVault_sdUSD";
+export const SDUSD_ROUTER_ID = "dStakeRouter_sdUSD";
