@@ -144,7 +144,7 @@ export const createDStakeFixture = (config: DStakeFixtureConfig) => {
         router,
         dStableToken: dStableToken as unknown as ERC20,
         dStableInfo,
-        vaultAssetToken: wrappedAToken,
+        vaultAssetToken: wrappedAToken as unknown as IERC20,
         vaultAssetAddress,
         adapter,
         adapterAddress,
