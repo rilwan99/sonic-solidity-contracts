@@ -27,22 +27,13 @@ export default [
       "dist/**/*",
       "node_modules/**",
       "!**/.*",
-      "**/contracts/",
-      "**/debug/",
-      "**/typechain-types/",
       "**/.github/",
       "**/.yarn/",
       "*.js",
     ],
   },
   {
-    files: [
-      "*.ts",
-      "*.json",
-      "typescript/**/*.ts",
-      "deploy/**/*.ts",
-      "config/**/*.ts",
-    ],
+    files: ["*.ts", "*.json", "src/**/*.ts", "config/*.ts"],
   },
   ...compat.extends(
     "plugin:jsdoc/recommended",
