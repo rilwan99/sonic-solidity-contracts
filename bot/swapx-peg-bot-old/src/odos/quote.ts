@@ -75,7 +75,7 @@ export async function getBaseTokenPrice(
   baseToken: string,
   quoteToken: string,
   baseAmount: string = "1",
-  provider?: ethers.Provider
+  provider?: ethers.Provider,
 ): Promise<number> {
   provider = provider || (await getDefaultProvider());
   // Get decimals for quote token
@@ -86,7 +86,7 @@ export async function getBaseTokenPrice(
     quoteToken,
     baseAmount,
     0.5,
-    provider
+    provider,
   );
   // Get the output amount in base units (should be first in outAmounts)
   const outAmountBaseUnits = quote.outAmounts[0];
