@@ -10,21 +10,24 @@ If this has helped you please consider giving it a star!
 
 - Node.js v18 or later
 - AWS CLI configured with appropriate credentials
-- AWS CDK CLI installed globally (`npm install -g aws-cdk`)
+- AWS CDK CLI installed globally (`yarn install -g aws-cdk`)
 
 ## Setup
 
 1. Install dependencies:
+
 ```bash
-npm install
+yarn install
 ```
 
 1. Build the project:
+
 ```bash
-npm run build
+yarn run build
 ```
 
 1. Set up your own local config file:
+
 ```bash
 # Copy the example config file
 cp src/lambda/config.example.ts src/lambda/config.ts
@@ -37,13 +40,15 @@ cp src/lambda/config.example.ts src/lambda/config.ts
 ## Testing
 
 Run the bot locally:
+
 ```bash
-npm run local
+yarn run local
 ```
 
 Run the test suite (will fail with no tests):
+
 ```bash
-npm test
+yarn test
 ```
 
 ## Linting
@@ -51,34 +56,38 @@ npm test
 The project uses ESLint with TypeScript support for code quality.
 
 - Run linting check:
+
 ```bash
-npm run lint
+yarn run lint
 ```
 
 - Fix auto-fixable issues:
+
 ```bash
-npm run lint:fix
+yarn run lint:fix
 ```
 
 ## Local Development
 
-- Build the project: `npm run build`
-- Watch for changes: `npm run watch`
-- Synthesize CloudFormation template: `npm run synth`
-- Compare deployed stack with current state: `npm run diff`
+- Build the project: `yarn run build`
+- Watch for changes: `yarn run watch`
+- Synthesize CloudFormation template: `yarn run synth`
+- Compare deployed stack with current state: `yarn run diff`
 
 ## Deployment
 
 ### Manual Deployment
 
 1. Make sure you have AWS credentials configured:
+
 ```bash
 aws configure
 ```
 
 2. Deploy the stack:
+
 ```bash
-npm run deploy
+yarn run deploy
 ```
 
 ## Project Structure
