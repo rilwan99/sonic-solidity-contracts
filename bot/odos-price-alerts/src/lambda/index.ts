@@ -20,7 +20,8 @@ export const handler = async (
       const tokenPrice = await odosService.getTokenPrice(
         "TOKEN", // Symbol placeholder since it's not used meaningfully
         pair.baseToken,
-        pair.quoteToken
+        pair.quoteToken,
+        pair.baseAmount
       );
 
       console.log(

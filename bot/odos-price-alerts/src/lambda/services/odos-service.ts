@@ -85,8 +85,8 @@ export class OdosService {
     this.blockchainId = blockchainId;
     this.provider = provider;
   }
-  async getTokenPrice(symbol: string, baseToken: string, quoteToken: string): Promise<TokenPrice> {
-    const price = await getBaseTokenPrice(baseToken, quoteToken, "1", this.provider);
+  async getTokenPrice(symbol: string, baseToken: string, quoteToken: string, baseAmount: string): Promise<TokenPrice> {
+    const price = await getBaseTokenPrice(baseToken, quoteToken, baseAmount, this.provider);
     return {
       symbol,
       price: Number(price),
