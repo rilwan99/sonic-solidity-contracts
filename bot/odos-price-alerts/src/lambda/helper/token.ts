@@ -7,4 +7,13 @@ export async function getTokenDecimals(
   const abi = ["function decimals() view returns (uint8)"];
   const contract = new ethers.Contract(tokenAddress, abi, provider);
   return await contract.decimals();
-} 
+}
+
+export async function getTokenSymbol(
+  tokenAddress: string,
+  provider: ethers.Provider,
+): Promise<string> {
+  const abi = ["function symbol() view returns (string)"];
+  const contract = new ethers.Contract(tokenAddress, abi, provider);
+  return await contract.symbol();
+}

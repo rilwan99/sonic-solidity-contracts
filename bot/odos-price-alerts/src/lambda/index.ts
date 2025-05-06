@@ -4,6 +4,7 @@ import { PriceChecker } from "./services/price-checker";
 import { NotificationService } from "./services/notification-service";
 import { config } from "./config";
 import { getRpcProvider } from "./helper/provider";
+import { getTokenSymbol } from "./helper/token";
 
 export const handler = async (
   event: ScheduledEvent
@@ -18,7 +19,7 @@ export const handler = async (
       const odosService = new OdosService(pair.blockchainId, provider);
 
       const tokenPrice = await odosService.getTokenPrice(
-        "TOKEN", // Symbol placeholder since it's not used meaningfully
+        await getTokenSymbol(pair.baseToken, provider),
         pair.baseToken,
         pair.quoteToken,
         pair.baseAmount
