@@ -4,7 +4,7 @@ install:
 	yarn install --frozen-lockfile
 
 lint:
-	yarn run lint || echo "No linter configured."
+	yarn lint
 
 docker-build:
 	docker build -t dlend-liquidation-slackbot .
