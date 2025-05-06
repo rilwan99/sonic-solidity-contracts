@@ -1,4 +1,4 @@
-import { Config } from "./config-types";
+import { Config } from "./lambda/config-types";
 
 export const config: Config = {
   slackWebhookUrl: "YOUR_SLACK_WEBHOOK_URL",

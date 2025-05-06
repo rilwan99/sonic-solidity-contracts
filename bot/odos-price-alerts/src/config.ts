@@ -1,7 +1,7 @@
-import { Config } from "./config-types";
+import { Config } from "./lambda/config-types";
 
 export const config: Config = {
-  slackWebhookUrl: "YOUR_SLACK_WEBHOOK_URL",
+  slackWebhookUrl: "https://hooks.slack.com/services/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",
   pairs: [
     {
       // dUSD/USDC.e
@@ -14,4 +14,4 @@ export const config: Config = {
       upperThreshold: 1.005,
     },
   ],
-}; 
+};
