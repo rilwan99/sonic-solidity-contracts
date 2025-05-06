@@ -4,7 +4,7 @@ import * as events from "aws-cdk-lib/aws-events";
 import * as targets from "aws-cdk-lib/aws-events-targets";
 import { Construct } from "constructs";
 
-export const ProjectName = "SimpleLambdaBot";
+export const ProjectName = "OdosPriceAlerts";
 
 export class LambdaStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
