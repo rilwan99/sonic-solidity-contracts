@@ -1,6 +1,12 @@
 import { IncomingWebhook } from "@slack/webhook";
 import { PriceAlert } from "./price-checker";
 
+// A map for base token to currency symbol
+const baseTokenSymbolToCurrencySymbol: Record<string, string> = {
+  "dUSD": "USD",
+  "dS": "S",
+};
+
 export class NotificationService {
   private webhook: IncomingWebhook;
 
@@ -15,6 +21,13 @@ export class NotificationService {
         ? "below lower threshold"
         : "above upper threshold";
 
+    let currencySymbol = "";
+    if (alert.symbol in baseTokenSymbolToCurrencySymbol) {
+      currencySymbol = baseTokenSymbolToCurrencySymbol[alert.symbol];
+    } else {
+      throw new Error(`No currency symbol found for ${alert.symbol}`);
+    }
+
     const message = {
       text: `${emoji} Price Alert for ${alert.symbol} on ${alert.blockchainId}!`,
       blocks: [
@@ -24,12 +37,12 @@ export class NotificationService {
             type: "mrkdwn",
             text:
               `*Price Alert for ${alert.symbol} on ${alert.blockchainId}*\n\n` +
-              `Current Price: $${alert.currentPrice.toFixed(
+              `Current Price: ${alert.currentPrice.toFixed(
                 4
-              )} (${thresholdText})\n` +
+              )} ${currencySymbol} (${thresholdText})\n` +
               `${
                 alert.thresholdType === "lower" ? "Lower" : "Upper"
-              } Threshold: $${alert.breachedThreshold.toFixed(4)}\n` +
+              } Threshold: ${alert.breachedThreshold.toFixed(4)} ${currencySymbol}\n` +
               `Time: ${new Date(alert.timestamp).toLocaleString()}`,
           },
         },
