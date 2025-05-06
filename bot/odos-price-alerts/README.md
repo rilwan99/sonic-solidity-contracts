@@ -90,6 +90,13 @@ aws configure
 yarn run deploy
 ```
 
+or
+
+```bash
+AWS_PROFILE=<your-profile-name> yarn run deploy
+```
+
+
 ## Project Structure
 
 ```
