@@ -113,16 +113,18 @@ contract dStakeToken is ERC4626, AccessControl {
             BasisPointConstants.ONE_HUNDRED_PERCENT_BPS;
         uint256 amountToSend = assets - fee;
 
+        // Burn shares from owner
+        _burn(owner, shares);
+
         // Delegate conversion and vault update logic to router
         // Router is responsible for ensuring `amountToSend` of dSTABLE reaches the `receiver`.
         router.withdraw(amountToSend, receiver, owner);
 
-        // Burn shares from owner AFTER router interaction (ensures assets are available)
-        super._withdraw(caller, receiver, owner, assets, shares); // This handles the share burning
+        // Emit ERC4626 Withdraw event
+        emit Withdraw(caller, receiver, owner, assets, shares);
 
-        // Optional: Transfer fee somewhere (e.g., treasury) - needs implementation
+        // Optional: Emit fee event
         if (fee > 0) {
-            // IERC20(asset()).transfer(FEE_RECIPIENT, fee); // Example: Requires FEE_RECIPIENT address
             emit WithdrawalFee(owner, receiver, fee);
         }
     }
