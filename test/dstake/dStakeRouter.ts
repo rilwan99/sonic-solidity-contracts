@@ -11,8 +11,11 @@ import {
 } from "../../typechain-types";
 import { createDStakeFixture, SDUSD_CONFIG } from "./fixture";
 import { DStakeRouter__factory } from "../../typechain-types/factories/contracts/vaults/dstake/DStakeRouter__factory";
+import { ERC20StablecoinUpgradeable } from "../../typechain-types/contracts/dstable/ERC20StablecoinUpgradeable";
 
 describe("dStakeRouter", function () {
+  let routerAddress: string;
+  let collateralVaultAddress: string;
   let deployerAddr: string;
   let user1Addr: string;
   let user2Addr: string;
@@ -47,6 +50,8 @@ describe("dStakeRouter", function () {
     vaultAssetAddress = fixture.vaultAssetAddress;
     adapter = fixture.adapter as unknown as IdStableConversionAdapter;
     adapterAddress = fixture.adapterAddress;
+    routerAddress = await router.getAddress();
+    collateralVaultAddress = await collateralVault.getAddress();
   });
 
   describe("Initialization and State", function () {
@@ -199,6 +204,303 @@ describe("dStakeRouter", function () {
       await expect(
         router.connect(user2Signer).removeCollateralExchanger(user1Addr)
       ).to.be.reverted;
+    });
+  });
+
+  // Add core logic tests for deposit, withdraw, and asset exchange functions
+  describe("Deposit and Withdraw", function () {
+    const depositAmount = ethers.parseUnits("10", 18);
+
+    beforeEach(async function () {
+      const dStakeTokenAddress = await dStakeToken.getAddress();
+      // Grant deployer minter role and mint dStable to dStakeToken contract
+      const dstableMinter = (await ethers.getContractAt(
+        "ERC20StablecoinUpgradeable",
+        await dStableToken.getAddress(),
+        deployerSigner
+      )) as ERC20StablecoinUpgradeable;
+      const MINTER_ROLE = await dstableMinter.MINTER_ROLE();
+      await dstableMinter.grantRole(MINTER_ROLE, deployerAddr);
+      await dstableMinter.mint(dStakeTokenAddress, depositAmount);
+      // Impersonate the dStakeToken contract for auth-required calls
+      await ethers.provider.send("hardhat_impersonateAccount", [
+        dStakeTokenAddress,
+      ]);
+      // Fund impersonated dStakeToken with ETH for gas
+      await ethers.provider.send("hardhat_setBalance", [
+        dStakeTokenAddress,
+        "0x1000000000000000000",
+      ]);
+    });
+
+    it("non-dStakeToken cannot call deposit", async function () {
+      await expect(
+        router.connect(user1Signer).deposit(depositAmount, user1Addr)
+      ).to.be.reverted;
+    });
+
+    it("dStakeToken can deposit, emits event and deposits vault asset to collateralVault", async function () {
+      const dStakeTokenAddress = await dStakeToken.getAddress();
+      const dStakeTokenSigner = await ethers.getSigner(dStakeTokenAddress);
+      await dStableToken
+        .connect(dStakeTokenSigner)
+        .approve(routerAddress, depositAmount);
+      const [, expectedVaultAssetAmount] =
+        await adapter.previewConvertToVaultAsset(depositAmount);
+      // Check event emission and balances
+      await expect(
+        router.connect(dStakeTokenSigner).deposit(depositAmount, user1Addr)
+      )
+        .to.emit(router, "Deposited")
+        .withArgs(
+          vaultAssetAddress,
+          expectedVaultAssetAmount,
+          depositAmount,
+          user1Addr
+        );
+      expect(await vaultAssetToken.balanceOf(collateralVaultAddress)).to.equal(
+        expectedVaultAssetAmount
+      );
+    });
+
+    it("non-dStakeToken cannot call withdraw", async function () {
+      await expect(
+        router
+          .connect(user1Signer)
+          .withdraw(depositAmount, user1Addr, user1Addr)
+      ).to.be.reverted;
+    });
+
+    it("dStakeToken can withdraw, emits event and transfers dStable to receiver", async function () {
+      const dStakeTokenAddress = await dStakeToken.getAddress();
+      const dStakeTokenSigner = await ethers.getSigner(dStakeTokenAddress);
+      await dStableToken
+        .connect(dStakeTokenSigner)
+        .approve(routerAddress, depositAmount);
+      await router
+        .connect(dStakeTokenSigner)
+        .deposit(depositAmount, routerAddress);
+      const initial = await dStableToken.balanceOf(user1Addr);
+      // Check event emission and balance
+      await expect(
+        router
+          .connect(dStakeTokenSigner)
+          .withdraw(depositAmount, user1Addr, user1Addr)
+      ).to.emit(router, "Withdrawn");
+      const finalBal = await dStableToken.balanceOf(user1Addr);
+      expect(finalBal - initial).to.equal(depositAmount);
+    });
+  });
+
+  describe("Exchange Assets Using Adapters", function () {
+    const depositAmount = ethers.parseUnits("10", 18);
+    const exchangeAmount = ethers.parseUnits("5", 18);
+
+    beforeEach(async function () {
+      const dStakeTokenAddress = await dStakeToken.getAddress();
+      // Grant deployer minter role and mint dStable to dStakeToken contract
+      const dstableMinter = (await ethers.getContractAt(
+        "ERC20StablecoinUpgradeable",
+        await dStableToken.getAddress(),
+        deployerSigner
+      )) as ERC20StablecoinUpgradeable;
+      const MINTER_ROLE = await dstableMinter.MINTER_ROLE();
+      await dstableMinter.grantRole(MINTER_ROLE, deployerAddr);
+      await dstableMinter.mint(dStakeTokenAddress, depositAmount);
+      // Impersonate the dStakeToken contract for deposit
+      await ethers.provider.send("hardhat_impersonateAccount", [
+        dStakeTokenAddress,
+      ]);
+      // Fund impersonated dStakeToken with ETH for gas
+      await ethers.provider.send("hardhat_setBalance", [
+        dStakeTokenAddress,
+        "0x1000000000000000000",
+      ]);
+      const dStakeTokenSigner = await ethers.getSigner(dStakeTokenAddress);
+      await dStableToken
+        .connect(dStakeTokenSigner)
+        .approve(routerAddress, depositAmount);
+      await router
+        .connect(dStakeTokenSigner)
+        .deposit(depositAmount, routerAddress);
+      await router.connect(deployerSigner).addCollateralExchanger(user1Addr);
+    });
+
+    it("non-exchanger cannot call exchangeAssetsUsingAdapters", async function () {
+      await expect(
+        router
+          .connect(user2Signer)
+          .exchangeAssetsUsingAdapters(
+            vaultAssetAddress,
+            vaultAssetAddress,
+            exchangeAmount
+          )
+      ).to.be.reverted;
+    });
+
+    it("reverts if adapter not found", async function () {
+      await expect(
+        router
+          .connect(user1Signer)
+          .exchangeAssetsUsingAdapters(
+            ZeroAddress,
+            vaultAssetAddress,
+            exchangeAmount
+          )
+      ).to.be.revertedWithCustomError(router, "AdapterNotFound");
+      await expect(
+        router
+          .connect(user1Signer)
+          .exchangeAssetsUsingAdapters(
+            vaultAssetAddress,
+            ZeroAddress,
+            exchangeAmount
+          )
+      ).to.be.revertedWithCustomError(router, "AdapterNotFound");
+    });
+
+    it("can exchange assets via adapters and emits event", async function () {
+      const dStableValue =
+        await adapter.previewConvertFromVaultAsset(exchangeAmount);
+      const [, expectedVaultAssetAmount] =
+        await adapter.previewConvertToVaultAsset(dStableValue);
+      // Check event emission and balances
+      await expect(
+        router
+          .connect(user1Signer)
+          .exchangeAssetsUsingAdapters(
+            vaultAssetAddress,
+            vaultAssetAddress,
+            exchangeAmount
+          )
+      ).to.emit(router, "Exchanged");
+      expect(await vaultAssetToken.balanceOf(collateralVaultAddress)).to.equal(
+        depositAmount
+      );
+    });
+  });
+
+  describe("Exchange Assets", function () {
+    const depositAmount = ethers.parseUnits("10", 18);
+    const exchangeAmount = ethers.parseUnits("5", 18);
+
+    beforeEach(async function () {
+      const dStakeTokenAddress = await dStakeToken.getAddress();
+      // Grant deployer minter role and mint dStable to dStakeToken contract
+      const dstableMinter = (await ethers.getContractAt(
+        "ERC20StablecoinUpgradeable",
+        await dStableToken.getAddress(),
+        deployerSigner
+      )) as ERC20StablecoinUpgradeable;
+      const MINTER_ROLE = await dstableMinter.MINTER_ROLE();
+      await dstableMinter.grantRole(MINTER_ROLE, deployerAddr);
+      await dstableMinter.mint(dStakeTokenAddress, depositAmount);
+      // Impersonate the dStakeToken contract for deposit
+      await ethers.provider.send("hardhat_impersonateAccount", [
+        dStakeTokenAddress,
+      ]);
+      // Fund impersonated dStakeToken with ETH for gas
+      await ethers.provider.send("hardhat_setBalance", [
+        dStakeTokenAddress,
+        "0x1000000000000000000",
+      ]);
+      const dStakeTokenSigner = await ethers.getSigner(dStakeTokenAddress);
+      await dStableToken
+        .connect(dStakeTokenSigner)
+        .approve(routerAddress, depositAmount);
+      await router
+        .connect(dStakeTokenSigner)
+        .deposit(depositAmount, routerAddress);
+      await router.connect(deployerSigner).addCollateralExchanger(user1Addr);
+      // Impersonate the collateralVault for transferring vault assets
+      await ethers.provider.send("hardhat_impersonateAccount", [
+        collateralVaultAddress,
+      ]);
+      // Fund impersonated collateralVault with ETH for gas
+      await ethers.provider.send("hardhat_setBalance", [
+        collateralVaultAddress,
+        "0x1000000000000000000",
+      ]);
+      const vaultSigner = await ethers.getSigner(collateralVaultAddress);
+      await vaultAssetToken
+        .connect(vaultSigner)
+        .transfer(user1Addr, exchangeAmount);
+      await ethers.provider.send("hardhat_stopImpersonatingAccount", [
+        collateralVaultAddress,
+      ]);
+      // Approve router to spend solver's vaultAsset for exchange
+      await vaultAssetToken
+        .connect(user1Signer)
+        .approve(routerAddress, exchangeAmount);
+    });
+
+    it("non-exchanger cannot call exchangeAssets", async function () {
+      await expect(
+        router
+          .connect(user2Signer)
+          .exchangeAssets(
+            vaultAssetAddress,
+            vaultAssetAddress,
+            exchangeAmount,
+            0
+          )
+      ).to.be.reverted;
+    });
+
+    it("reverts on zero input amount", async function () {
+      await expect(
+        router
+          .connect(user1Signer)
+          .exchangeAssets(vaultAssetAddress, vaultAssetAddress, 0, 0)
+      ).to.be.revertedWithCustomError(router, "InconsistentState");
+    });
+
+    it("reverts if adapter not found", async function () {
+      await expect(
+        router
+          .connect(user1Signer)
+          .exchangeAssets(ZeroAddress, vaultAssetAddress, exchangeAmount, 0)
+      ).to.be.revertedWithCustomError(router, "ZeroAddress");
+      await expect(
+        router
+          .connect(user1Signer)
+          .exchangeAssets(vaultAssetAddress, ZeroAddress, exchangeAmount, 0)
+      ).to.be.revertedWithCustomError(router, "ZeroAddress");
+    });
+
+    it("reverts on slippage check failure", async function () {
+      const [, invalidToAmount] =
+        await adapter.previewConvertToVaultAsset(depositAmount);
+      await expect(
+        router
+          .connect(user1Signer)
+          .exchangeAssets(
+            vaultAssetAddress,
+            vaultAssetAddress,
+            exchangeAmount,
+            invalidToAmount + BigInt(1)
+          )
+      ).to.be.revertedWithCustomError(router, "SlippageCheckFailed");
+    });
+
+    it("can exchange assets and emits event and net solver balances unchanged", async function () {
+      const dStableValueIn =
+        await adapter.previewConvertFromVaultAsset(exchangeAmount);
+      const [, expectedToVault] =
+        await adapter.previewConvertToVaultAsset(dStableValueIn);
+      const initial = await vaultAssetToken.balanceOf(user1Addr);
+      // Check event emission and balances
+      await expect(
+        router
+          .connect(user1Signer)
+          .exchangeAssets(
+            vaultAssetAddress,
+            vaultAssetAddress,
+            exchangeAmount,
+            expectedToVault
+          )
+      ).to.emit(router, "Exchanged");
+      expect(await vaultAssetToken.balanceOf(user1Addr)).to.equal(initial);
     });
   });
 });
