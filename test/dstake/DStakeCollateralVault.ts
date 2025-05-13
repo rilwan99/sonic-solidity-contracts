@@ -1,10 +1,10 @@
 import { ethers, deployments, getNamedAccounts } from "hardhat";
 import { expect } from "chai";
 import {
-  dStakeCollateralVault,
-  dStakeToken,
-  dStakeRouter,
-  IDStableConversionAdapter,
+  DStakeCollateralVault,
+  DStakeToken,
+  DStakeRouter,
+  IdStableConversionAdapter,
   ERC20,
   IERC20,
 } from "../../typechain-types";
@@ -22,7 +22,7 @@ async function fundVaultWithTokens(
   vaultAssetToken: IERC20,
   vaultAssetAddress: string,
   deployer: SignerWithAddress,
-  collateralVault: dStakeCollateralVault,
+  collateralVault: DStakeCollateralVault,
   amount: bigint
 ): Promise<void> {
   try {
@@ -60,15 +60,15 @@ describe("dStakeCollateralVault", () => {
   let routerRole: string;
 
   // Fixture types
-  let dStakeToken: dStakeToken;
-  let collateralVault: dStakeCollateralVault;
-  let router: dStakeRouter;
+  let dStakeToken: DStakeToken;
+  let collateralVault: DStakeCollateralVault;
+  let router: DStakeRouter;
   let dStableToken: ERC20;
   let dStableDecimals: bigint;
   let vaultAssetToken: IERC20; // Keep as IERC20 to match fixture
   let vaultAssetAddress: string;
   let vaultAssetDecimals: bigint; // Populated in a different way
-  let adapter: IDStableConversionAdapter;
+  let adapter: IdStableConversionAdapter;
   let adapterAddress: string;
   let dStakeTokenAddress: string;
   let dStableTokenAddress: string;
@@ -85,14 +85,15 @@ describe("dStakeCollateralVault", () => {
     // Use the specific sdUSD fixture defined in fixture.ts
     const fixture = await createDStakeFixture(SDUSD_CONFIG)();
 
-    dStakeToken = fixture.dStakeToken;
-    collateralVault = fixture.collateralVault;
-    router = fixture.router;
+    dStakeToken = fixture.dStakeToken as unknown as DStakeToken;
+    collateralVault =
+      fixture.collateralVault as unknown as DStakeCollateralVault;
+    router = fixture.router as unknown as DStakeRouter;
     dStableToken = fixture.dStableToken;
     dStableDecimals = await dStableToken.decimals();
     vaultAssetToken = fixture.vaultAssetToken; // Keep as IERC20 from fixture
     vaultAssetAddress = fixture.vaultAssetAddress;
-    adapter = fixture.adapter!; // Assert non-null, expect adapter to exist in fixture
+    adapter = fixture.adapter! as unknown as IdStableConversionAdapter; // Assert non-null, expect adapter to exist in fixture
     adapterAddress = fixture.adapterAddress;
 
     dStakeTokenAddress = await dStakeToken.getAddress();
@@ -176,10 +177,10 @@ describe("dStakeCollateralVault", () => {
       const VaultFactory = await ethers.getContractFactory(
         "dStakeCollateralVault"
       );
-      const newVault = await VaultFactory.deploy(
+      const newVault = (await VaultFactory.deploy(
         dStakeTokenAddress,
         dStableTokenAddress
-      );
+      )) as unknown as DStakeCollateralVault;
       await newVault.waitForDeployment();
       expect(await newVault.router()).to.equal(ZeroAddress);
     });
@@ -193,10 +194,10 @@ describe("dStakeCollateralVault", () => {
       const VaultFactory = await ethers.getContractFactory(
         "dStakeCollateralVault"
       );
-      const newVault = await VaultFactory.deploy(
+      const newVault = (await VaultFactory.deploy(
         dStakeTokenAddress,
         dStableTokenAddress
-      );
+      )) as unknown as DStakeCollateralVault;
       await newVault.waitForDeployment();
       expect(await newVault.hasRole(routerRole, routerAddress)).to.be.false;
       expect(await newVault.hasRole(routerRole, deployer.address)).to.be.false;
@@ -207,10 +208,10 @@ describe("dStakeCollateralVault", () => {
       const VaultFactory = await ethers.getContractFactory(
         "dStakeCollateralVault"
       );
-      const newVault = await VaultFactory.deploy(
+      const newVault = (await VaultFactory.deploy(
         dStakeTokenAddress,
         dStableTokenAddress
-      );
+      )) as unknown as DStakeCollateralVault;
       await newVault.waitForDeployment();
 
       try {

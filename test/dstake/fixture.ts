@@ -11,10 +11,10 @@ import {
   TokenInfo,
 } from "../../typescript/token/utils";
 import {
-  dStakeToken,
-  dStakeCollateralVault,
-  dStakeRouter,
-  IDStableConversionAdapter,
+  DStakeToken,
+  DStakeCollateralVault,
+  DStakeRouter,
+  IdStableConversionAdapter,
   ERC20, // Use for tokens to avoid IERC20 ambiguity
 } from "../../typechain-types"; // Adjust paths as needed
 // Use specific IERC20 implementation to avoid ambiguity
@@ -26,8 +26,7 @@ import {
   SDUSD_ROUTER_ID,
   DUSD_A_TOKEN_WRAPPER_ID,
 } from "../../typescript/deploy-ids";
-import { expect } from "chai";
-import { dLendFixture, DLendFixtureResult } from "../dlend/fixtures";
+import { dLendFixture } from "../dlend/fixtures";
 
 // Interface defining the structure of the fixture's config
 export interface DStakeFixtureConfig {
@@ -124,7 +123,7 @@ export const createDStakeFixture = (config: DStakeFixtureConfig) => {
         adapterAddress =
           await collateralVault.adapterForAsset(vaultAssetAddress);
         adapter = await ethers.getContractAt(
-          "IDStableConversionAdapter",
+          "IdStableConversionAdapter",
           adapterAddress
         );
       } catch (err: any) {
