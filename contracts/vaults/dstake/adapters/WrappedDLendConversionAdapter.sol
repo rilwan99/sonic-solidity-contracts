@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IDStableConversionAdapter} from "../interfaces/IDStableConversionAdapter.sol";
+import {IdStableConversionAdapter} from "../interfaces/IdStableConversionAdapter.sol";
 import {IStaticATokenLM} from "../../atoken_wrapper/interfaces/IStaticATokenLM.sol"; // Interface for StaticATokenLM
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
@@ -14,7 +14,7 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
  * @dev Implements the IDStableConversionAdapter interface.
  *      Interacts with a specific StaticATokenLM contract provided at deployment.
  */
-contract WrappedDLendConversionAdapter is IDStableConversionAdapter {
+contract WrappedDLendConversionAdapter is IdStableConversionAdapter {
     using SafeERC20 for IERC20;
 
     // --- Errors ---
@@ -59,7 +59,7 @@ contract WrappedDLendConversionAdapter is IDStableConversionAdapter {
     // --- IDStableConversionAdapter Implementation ---
 
     /**
-     * @inheritdoc IDStableConversionAdapter
+     * @inheritdoc IdStableConversionAdapter
      * @dev Converts dStable -> wrappedDLendToken by depositing into StaticATokenLM.
      *      The StaticATokenLM contract MUST be pre-approved to spend dStable held by this adapter.
      *      The StaticATokenLM contract mints the wrappedDLendToken directly to the collateralVault.
@@ -98,7 +98,7 @@ contract WrappedDLendConversionAdapter is IDStableConversionAdapter {
     }
 
     /**
-     * @inheritdoc IDStableConversionAdapter
+     * @inheritdoc IdStableConversionAdapter
      * @dev Converts wrappedDLendToken -> dStable by withdrawing from StaticATokenLM.
      *      The StaticATokenLM contract sends the dStable directly to msg.sender.
      */
@@ -135,7 +135,7 @@ contract WrappedDLendConversionAdapter is IDStableConversionAdapter {
     }
 
     /**
-     * @inheritdoc IDStableConversionAdapter
+     * @inheritdoc IdStableConversionAdapter
      * @dev Uses StaticATokenLM's previewRedeem function to get the underlying value (dStable).
      */
     function assetValueInDStable(
@@ -154,14 +154,14 @@ contract WrappedDLendConversionAdapter is IDStableConversionAdapter {
     }
 
     /**
-     * @inheritdoc IDStableConversionAdapter
+     * @inheritdoc IdStableConversionAdapter
      */
     function vaultAsset() external view override returns (address) {
         return address(wrappedDLendToken);
     }
 
     /**
-     * @inheritdoc IDStableConversionAdapter
+     * @inheritdoc IdStableConversionAdapter
      * @dev Preview the result of converting a given dSTABLE amount to wrappedDLendToken.
      */
     function previewConvertToVaultAsset(
@@ -179,7 +179,7 @@ contract WrappedDLendConversionAdapter is IDStableConversionAdapter {
     }
 
     /**
-     * @inheritdoc IDStableConversionAdapter
+     * @inheritdoc IdStableConversionAdapter
      * @dev Preview the result of converting a given wrappedDLendToken amount to dSTABLE.
      */
     function previewConvertFromVaultAsset(

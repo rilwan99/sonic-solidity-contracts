@@ -87,7 +87,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const dStakeTokenDeploymentName = `dStakeToken_${instanceKey}`;
     const dStakeTokenDeployment = await deploy(dStakeTokenDeploymentName, {
       from: deployer,
-      contract: "DStakeToken",
+      contract: "dStakeToken",
       args: [
         instanceConfig.dStable,
         instanceConfig.name,
@@ -103,7 +103,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       collateralVaultDeploymentName,
       {
         from: deployer,
-        contract: "DStakeCollateralVault",
+        contract: "dStakeCollateralVault",
         args: [dStakeTokenDeployment.address, instanceConfig.dStable],
         log: false,
       }
@@ -112,14 +112,14 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const routerDeploymentName = `dStakeRouter_${instanceKey}`;
     const routerDeployment = await deploy(routerDeploymentName, {
       from: deployer,
-      contract: "DStakeRouter",
+      contract: "dStakeRouter",
       args: [dStakeTokenDeployment.address, collateralVaultDeployment.address],
       log: false,
     });
 
     // --- Grant Vault Admin Role to Initial Admin ---
     const collateralVault = await hre.ethers.getContractAt(
-      "DStakeCollateralVault",
+      "dStakeCollateralVault",
       collateralVaultDeployment.address
     );
     const adminRole = ethers.ZeroHash;
@@ -137,7 +137,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
     // --- Grant Router Admin Role to Initial Admin ---
     const router = await hre.ethers.getContractAt(
-      "DStakeRouter",
+      "dStakeRouter",
       routerDeployment.address
     );
     const routerAdminRole = ethers.ZeroHash;

@@ -6,7 +6,7 @@ pragma solidity ^0.8.20;
  * @notice Defines the external functions of the dStakeRouter required by the dStakeToken
  *         for handling deposits and withdrawals.
  */
-interface IDStakeRouter {
+interface IdStakeRouter {
     /**
      * @notice Handles the conversion of deposited dStable asset into a chosen `vaultAsset`
      *         and informs the collateral vault.

@@ -8,7 +8,7 @@ pragma solidity ^0.8.20;
  *         valuing that `vault asset` in terms of the dStable asset.
  * @dev Implementations interact with specific protocols (lending pools, DEX LPs, wrappers, etc.).
  */
-interface IDStableConversionAdapter {
+interface IdStableConversionAdapter {
     /**
      * @notice Converts a specified amount of the dStable asset into the specific `vaultAsset`
      *         managed by this adapter.

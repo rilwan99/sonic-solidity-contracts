@@ -3,8 +3,8 @@ pragma solidity ^0.8.20;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IDStakeCollateralVault} from "./interfaces/IDStakeCollateralVault.sol";
-import {IDStableConversionAdapter} from "./interfaces/IDStableConversionAdapter.sol";
+import {IdStakeCollateralVault} from "./interfaces/IdStakeCollateralVault.sol";
+import {IdStableConversionAdapter} from "./interfaces/IdStableConversionAdapter.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
 /**
@@ -15,7 +15,7 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
  *      dStakeToken governance.
  *      Uses AccessControl for role-based access control.
  */
-contract DStakeCollateralVault is IDStakeCollateralVault, AccessControl {
+contract dStakeCollateralVault is IdStakeCollateralVault, AccessControl {
     using SafeERC20 for IERC20;
 
     // --- Roles ---
@@ -30,10 +30,10 @@ contract DStakeCollateralVault is IDStakeCollateralVault, AccessControl {
     error NonZeroBalance(address asset);
 
     // --- State ---
-    address public immutable DStakeToken; // The DStakeToken this vault serves
+    address public immutable dStakeToken; // The dStakeToken this vault serves
     address public immutable dStable; // The underlying dStable asset address
 
-    address public router; // The DStakeRouter allowed to interact
+    address public router; // The dStakeRouter allowed to interact
 
     mapping(address => address) public adapterForAsset; // vaultAsset => adapter
     address[] public supportedAssets; // List of supported vault assets
@@ -43,17 +43,17 @@ contract DStakeCollateralVault is IDStakeCollateralVault, AccessControl {
         if (_DStakeVaultShare == address(0) || _dStableAsset == address(0)) {
             revert ZeroAddress();
         }
-        DStakeToken = _DStakeVaultShare;
+        dStakeToken = _DStakeVaultShare;
         dStable = _dStableAsset;
 
         // Set up the DEFAULT_ADMIN_ROLE initially to the contract deployer
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    // --- External Views (IDStakeCollateralVault Interface) ---
+    // --- External Views (IdStakeCollateralVault Interface) ---
 
     /**
-     * @inheritdoc IDStakeCollateralVault
+     * @inheritdoc IdStakeCollateralVault
      */
     function totalValueInDStable()
         external
@@ -68,7 +68,7 @@ contract DStakeCollateralVault is IDStakeCollateralVault, AccessControl {
             if (adapterAddress != address(0)) {
                 uint256 balance = IERC20(vaultAsset).balanceOf(address(this));
                 if (balance > 0) {
-                    totalValue += IDStableConversionAdapter(adapterAddress)
+                    totalValue += IdStableConversionAdapter(adapterAddress)
                         .assetValueInDStable(vaultAsset, balance);
                 }
             }
@@ -99,7 +99,7 @@ contract DStakeCollateralVault is IDStakeCollateralVault, AccessControl {
     // --- External Functions (Governance) ---
 
     /**
-     * @notice Sets the address of the DStakeRouter contract.
+     * @notice Sets the address of the dStakeRouter contract.
      * @dev Only callable by an address with the DEFAULT_ADMIN_ROLE.
      * @param _newRouter The address of the new router contract.
      */
@@ -140,7 +140,7 @@ contract DStakeCollateralVault is IDStakeCollateralVault, AccessControl {
         }
 
         // Validate adapter interface and asset match
-        try IDStableConversionAdapter(adapterAddress).vaultAsset() returns (
+        try IdStableConversionAdapter(adapterAddress).vaultAsset() returns (
             address reportedAsset
         ) {
             if (reportedAsset != vaultAsset) {
@@ -185,9 +185,4 @@ contract DStakeCollateralVault is IDStakeCollateralVault, AccessControl {
         }
         emit AdapterRemoved(vaultAsset);
     }
-
-    // --- Events ---
-    event RouterSet(address indexed router);
-    event AdapterAdded(address indexed vaultAsset, address indexed adapter);
-    event AdapterRemoved(address indexed vaultAsset);
 }

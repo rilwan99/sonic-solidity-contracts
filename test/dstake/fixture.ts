@@ -11,9 +11,9 @@ import {
   TokenInfo,
 } from "../../typescript/token/utils";
 import {
-  DStakeToken,
-  DStakeCollateralVault,
-  DStakeRouter,
+  dStakeToken,
+  dStakeCollateralVault,
+  dStakeRouter,
   IDStableConversionAdapter,
   ERC20, // Use for tokens to avoid IERC20 ambiguity
 } from "../../typechain-types"; // Adjust paths as needed
@@ -38,7 +38,7 @@ export interface DStakeFixtureConfig {
   routerContractId: string;
   // Specify the default vault asset for testing
   defaultVaultAssetSymbol: string; // e.g., "wddUSD"
-  // Added name property for the DStakeToken
+  // Added name property for the dStakeToken
   name?: string; // Optional name for the token, will use "Staked {dStableSymbol}" if not provided
   underlyingDStableConfig: DStableFixtureConfig; // Config for the base dStable
   deploymentTags: string[]; // Tags needed to deploy dSTAKE and dependencies
@@ -93,17 +93,17 @@ export const createDStakeFixture = (config: DStakeFixtureConfig) => {
 
       // Get dStake contracts from deployment
       const dStakeToken = await ethers.getContractAt(
-        "DStakeToken",
+        "dStakeToken",
         (await deployments.get(config.dStakeTokenContractId)).address
       );
 
       const collateralVault = await ethers.getContractAt(
-        "DStakeCollateralVault",
+        "dStakeCollateralVault",
         (await deployments.get(config.collateralVaultContractId)).address
       );
 
       const router = await ethers.getContractAt(
-        "DStakeRouter",
+        "dStakeRouter",
         (await deployments.get(config.routerContractId)).address
       );
 

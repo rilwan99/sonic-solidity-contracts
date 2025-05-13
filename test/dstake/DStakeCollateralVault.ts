@@ -1,9 +1,9 @@
 import { ethers, deployments, getNamedAccounts } from "hardhat";
 import { expect } from "chai";
 import {
-  DStakeCollateralVault,
-  DStakeToken,
-  DStakeRouter,
+  dStakeCollateralVault,
+  dStakeToken,
+  dStakeRouter,
   IDStableConversionAdapter,
   ERC20,
   IERC20,
@@ -22,7 +22,7 @@ async function fundVaultWithTokens(
   vaultAssetToken: IERC20,
   vaultAssetAddress: string,
   deployer: SignerWithAddress,
-  collateralVault: DStakeCollateralVault,
+  collateralVault: dStakeCollateralVault,
   amount: bigint
 ): Promise<void> {
   try {
@@ -53,16 +53,16 @@ async function fundVaultWithTokens(
   }
 }
 
-describe("DStakeCollateralVault", () => {
+describe("dStakeCollateralVault", () => {
   let deployer: SignerWithAddress;
   let user1: SignerWithAddress;
   let adminRole: string;
   let routerRole: string;
 
   // Fixture types
-  let dStakeToken: DStakeToken;
-  let collateralVault: DStakeCollateralVault;
-  let router: DStakeRouter;
+  let dStakeToken: dStakeToken;
+  let collateralVault: dStakeCollateralVault;
+  let router: dStakeRouter;
   let dStableToken: ERC20;
   let dStableDecimals: bigint;
   let vaultAssetToken: IERC20; // Keep as IERC20 to match fixture
@@ -151,7 +151,7 @@ describe("DStakeCollateralVault", () => {
       .true;
 
     // Initial state verification from fixture (related to T1 tests)
-    expect(await collateralVault.DStakeToken()).to.equal(dStakeTokenAddress);
+    expect(await collateralVault.dStakeToken()).to.equal(dStakeTokenAddress);
     expect(await collateralVault.dStable()).to.equal(dStableTokenAddress);
 
     // Ensure vaultAssetToken is correctly typed as IERC20
@@ -168,13 +168,13 @@ describe("DStakeCollateralVault", () => {
     });
 
     it("Should set immutable state correctly", async () => {
-      expect(await collateralVault.DStakeToken()).to.equal(dStakeTokenAddress);
+      expect(await collateralVault.dStakeToken()).to.equal(dStakeTokenAddress);
       expect(await collateralVault.dStable()).to.equal(dStableTokenAddress);
     });
 
     it("Should have router as zero address initially", async () => {
       const VaultFactory = await ethers.getContractFactory(
-        "DStakeCollateralVault"
+        "dStakeCollateralVault"
       );
       const newVault = await VaultFactory.deploy(
         dStakeTokenAddress,
@@ -191,7 +191,7 @@ describe("DStakeCollateralVault", () => {
 
     it("Should not grant ROUTER_ROLE initially", async () => {
       const VaultFactory = await ethers.getContractFactory(
-        "DStakeCollateralVault"
+        "dStakeCollateralVault"
       );
       const newVault = await VaultFactory.deploy(
         dStakeTokenAddress,
@@ -205,7 +205,7 @@ describe("DStakeCollateralVault", () => {
 
     it("Should have no adapters initially", async () => {
       const VaultFactory = await ethers.getContractFactory(
-        "DStakeCollateralVault"
+        "dStakeCollateralVault"
       );
       const newVault = await VaultFactory.deploy(
         dStakeTokenAddress,

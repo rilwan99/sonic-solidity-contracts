@@ -29,7 +29,7 @@ dSTAKE allows users to stake a dSTABLE token (like dUSD) to earn yield. The depo
         *   `stakeToken`: Address of the `dStakeToken`. Immutable.
         *   `dStable`: Address of the underlying dSTABLE token (`dStakeToken.asset()`). Immutable.
         *   `router`: Address of the `dStakeRouter`. Settable by `stakeToken` admin.
-        *   `adapterForAsset`: `mapping(address vaultAsset => address adapter)`. Maps `vault asset` to its `IDStableConversionAdapter`. Managed by `stakeToken` admin.
+        *   `adapterForAsset`: `mapping(address vaultAsset => address adapter)`. Maps `vault asset` to its `IdStableConversionAdapter`. Managed by `stakeToken` admin.
         *   `supportedAssets`: `address[]`. List of `vault asset` addresses. Managed by `stakeToken` admin.
     *   **Key Functions:**
         *   `getTotalAssetValue() returns (uint256 dStableValue)`: Iterates `supportedAssets`, calls `adapter.assetValueInDStable()` for each, sums results. View.
@@ -82,7 +82,7 @@ dSTAKE allows users to stake a dSTABLE token (like dUSD) to earn yield. The depo
         *   `addCollateralExchanger(address exchanger)`: `onlyRole(DEFAULT_ADMIN_ROLE)`.
         *   `removeCollateralExchanger(address exchanger)`: `onlyRole(DEFAULT_ADMIN_ROLE)`.
 
-4.  **`IDStableConversionAdapter.sol` (Interface)**
+4.  **`IdStableConversionAdapter.sol` (Interface)**
     *   **Purpose:** Standard interface for converting dSTABLE asset <=> specific `vault asset` and valuing the `vault asset`.
     *   **Key Functions:**
         *   `convertToVaultAsset(uint256 dStableAmount) returns (address vaultAsset, uint256 vaultAssetAmount)`: Converts dSTABLE (pulled from caller) into `vaultAsset`, sending result to `collateralVault`.
@@ -93,7 +93,7 @@ dSTAKE allows users to stake a dSTABLE token (like dUSD) to earn yield. The depo
         *   `vaultAsset() view returns (address)`: Returns the specific `vault asset` address managed by this adapter.
 
 5.  **`WrappedDLendConversionAdapter.sol` (Example Implementation)**
-    *   **Purpose:** Implements `IDStableConversionAdapter` for a wrapped dLEND `aToken` (e.g., `wddUSD`). Wrapped using StaticATokenLM.sol
+    *   **Purpose:** Implements `IdStableConversionAdapter` for a wrapped dLEND `aToken` (e.g., `wddUSD`). Wrapped using StaticATokenLM.sol
     *   **State:** Protocol addresses (`dLendLendingPool`), asset addresses (`dUSD`, `wddUSD`), `collateralVault` address.
     *   **Logic:** Wraps/unwraps dUSD/`wddUSD`, deposits/withdraws from dLEND (on behalf of `collateralVault`), uses appropriate rates for `assetValueInDStable`.
 
@@ -111,4 +111,4 @@ dSTAKE allows users to stake a dSTABLE token (like dUSD) to earn yield. The depo
 *   **Withdrawal Fee:** Configurable fee in `dStakeToken`, managed by `FEE_MANAGER_ROLE`.
 *   **Rebalancing:** Dedicated `exchangeAssets*` functions in `Router`, managed by `COLLATERAL_EXCHANGER_ROLE`.
 *   **Error Handling:** Revert with details on failure.
-*   **Access Control:** `dStakeToken` manages its own roles (`DEFAULT_ADMIN_ROLE`, `FEE_MANAGER_ROLE`). `DStakeCollateralVault` has its own `DEFAULT_ADMIN_ROLE` and `ROUTER_ROLE`. `DStakeRouter` has its own `DEFAULT_ADMIN_ROLE`, `DSTAKE_TOKEN_ROLE`, and `COLLATERAL_EXCHANGER_ROLE`.
+*   **Access Control:** `dStakeToken` manages its own roles (`DEFAULT_ADMIN_ROLE`, `FEE_MANAGER_ROLE`). `dStakeCollateralVault` has its own `DEFAULT_ADMIN_ROLE` and `ROUTER_ROLE`. `dStakeRouter` has its own `DEFAULT_ADMIN_ROLE`, `DSTAKE_TOKEN_ROLE`, and `COLLATERAL_EXCHANGER_ROLE`.

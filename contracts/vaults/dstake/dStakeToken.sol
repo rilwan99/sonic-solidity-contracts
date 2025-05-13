@@ -5,15 +5,15 @@ import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.so
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IDStakeCollateralVault} from "./interfaces/IDStakeCollateralVault.sol";
-import {IDStakeRouter} from "./interfaces/IDStakeRouter.sol";
+import {IdStakeCollateralVault} from "./interfaces/IdStakeCollateralVault.sol";
+import {IdStakeRouter} from "./interfaces/IdStakeRouter.sol";
 import {BasisPointConstants} from "../../common/BasisPointConstants.sol";
 
 /**
  * @title dStakeToken
  * @dev ERC4626-compliant token representing shares in the dStakeCollateralVault.
  */
-contract DStakeToken is ERC4626, AccessControl {
+contract dStakeToken is ERC4626, AccessControl {
     // --- Roles ---
     bytes32 public constant FEE_MANAGER_ROLE = keccak256("FEE_MANAGER_ROLE");
 
@@ -22,8 +22,8 @@ contract DStakeToken is ERC4626, AccessControl {
     error InvalidFeeBps(uint256 feeBps, uint256 maxFeeBps);
 
     // --- State ---
-    IDStakeCollateralVault public collateralVault;
-    IDStakeRouter public router;
+    IdStakeCollateralVault public collateralVault;
+    IdStakeRouter public router;
 
     uint256 public withdrawalFeeBps;
     uint256 public constant maxWithdrawalFeeBps =
@@ -138,7 +138,7 @@ contract DStakeToken is ERC4626, AccessControl {
         if (_router == address(0)) {
             revert ZeroAddress();
         }
-        router = IDStakeRouter(_router);
+        router = IdStakeRouter(_router);
         emit RouterSet(_router);
     }
 
@@ -153,7 +153,7 @@ contract DStakeToken is ERC4626, AccessControl {
         if (_collateralVault == address(0)) {
             revert ZeroAddress();
         }
-        collateralVault = IDStakeCollateralVault(_collateralVault);
+        collateralVault = IdStakeCollateralVault(_collateralVault);
         emit CollateralVaultSet(_collateralVault);
     }
 
