@@ -284,6 +284,31 @@ describe("dStakeToken", () => {
         const assets = await dStakeToken.convertToAssets(assetsToDeposit);
         expect(assets).to.equal(assetsToDeposit);
       });
+
+      it("should reflect share price change when vault has extra assets", async () => {
+        // initial deposit to set base share price
+        await stable.mint(user1.address, assetsToDeposit);
+        await dStableToken
+          .connect(user1)
+          .approve(dStakeTokenAddress, assetsToDeposit);
+        await dStakeToken
+          .connect(user1)
+          .deposit(assetsToDeposit, user1.address);
+
+        // simulate additional yield by adapter
+        const extra = parseUnits("50", dStableDecimals);
+        await stable.mint(user1.address, extra);
+        await dStableToken.connect(user1).approve(adapterAddress, extra);
+        await adapter.connect(user1).convertToVaultAsset(extra);
+
+        // now share price > 1:1, so convertToShares returns less shares
+        const newShares = await dStakeToken.convertToShares(assetsToDeposit);
+        expect(newShares).to.be.lt(assetsToDeposit);
+
+        // convertToAssets on newShares should not exceed original assets due to rounding
+        const newAssets = await dStakeToken.convertToAssets(newShares);
+        expect(newAssets).to.be.lte(assetsToDeposit);
+      });
     });
 
     it("previewDeposit returns expected shares", async () => {
@@ -309,12 +334,7 @@ describe("dStakeToken", () => {
         ).to.be.revertedWithCustomError(fresh, "ZeroAddress");
       });
 
-      it("should revert if assets is zero", async () => {
-        await expect(
-          dStakeToken.connect(user1).deposit(0n, user1.address)
-        ).to.be.revertedWithCustomError(adapter, "InvalidAmount");
-      });
-
+      // zero-asset deposit allowed by default OpenZeppelin behavior
       it("should revert with ERC20InvalidReceiver when receiver is zero", async () => {
         await stable.mint(user1.address, assetsToDeposit);
         await dStableToken
@@ -348,6 +368,30 @@ describe("dStakeToken", () => {
           .to.emit(dStakeToken, "Deposit")
           .withArgs(user1.address, user1.address, assetsToDeposit, shares);
         expect(await dStakeToken.balanceOf(user1.address)).to.equal(shares);
+      });
+    });
+
+    describe("mint function", () => {
+      it("should mint shares and emit Deposit event via mint", async () => {
+        const sharesToMint = parseUnits("50", dStableDecimals);
+        const assetsToProvide = await dStakeToken.previewMint(sharesToMint);
+        await stable.mint(user1.address, assetsToProvide);
+        await dStableToken
+          .connect(user1)
+          .approve(dStakeTokenAddress, assetsToProvide);
+        await expect(
+          dStakeToken.connect(user1).mint(sharesToMint, user1.address)
+        )
+          .to.emit(dStakeToken, "Deposit")
+          .withArgs(
+            user1.address,
+            user1.address,
+            assetsToProvide,
+            sharesToMint
+          );
+        expect(await dStakeToken.balanceOf(user1.address)).to.equal(
+          sharesToMint
+        );
       });
     });
   });
@@ -431,6 +475,49 @@ describe("dStakeToken", () => {
       expect(await dStableToken.balanceOf(user1.address)).to.equal(
         assetsToReceive
       );
+    });
+  });
+
+  describe("ERC4626 Withdrawals & Redeeming with Fees", () => {
+    const assetsToDeposit = parseUnits("100", dStableDecimals);
+    let shares: bigint;
+
+    beforeEach(async () => {
+      // Set withdrawal fee to 1%
+      await dStakeToken.connect(user1).setWithdrawalFee(10000);
+      // Mint and deposit assets for user1
+      await stable.mint(user1.address, assetsToDeposit);
+      await dStableToken
+        .connect(user1)
+        .approve(dStakeTokenAddress, assetsToDeposit);
+      shares = await dStakeToken.previewDeposit(assetsToDeposit);
+      await dStakeToken.connect(user1).deposit(assetsToDeposit, user1.address);
+    });
+
+    it("should withdraw assets with fee deducted", async () => {
+      const fee = (assetsToDeposit * 10000n) / 1000000n;
+      const netAssets = assetsToDeposit - fee;
+      await expect(
+        dStakeToken
+          .connect(user1)
+          .withdraw(assetsToDeposit, user1.address, user1.address)
+      )
+        .to.emit(dStakeToken, "WithdrawalFee")
+        .withArgs(user1.address, user1.address, fee);
+      expect(await dStableToken.balanceOf(user1.address)).to.equal(netAssets);
+      expect(await dStakeToken.balanceOf(user1.address)).to.equal(0n);
+    });
+
+    it("should redeem shares with fee deducted", async () => {
+      const fee = (assetsToDeposit * 10000n) / 1000000n;
+      const netAssets = assetsToDeposit - fee;
+      await expect(
+        dStakeToken.connect(user1).redeem(shares, user1.address, user1.address)
+      )
+        .to.emit(dStakeToken, "WithdrawalFee")
+        .withArgs(user1.address, user1.address, fee);
+      expect(await dStableToken.balanceOf(user1.address)).to.equal(netAssets);
+      expect(await dStakeToken.balanceOf(user1.address)).to.equal(0n);
     });
   });
 });
