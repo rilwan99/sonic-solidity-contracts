@@ -80,6 +80,10 @@ export const PULL_REWARDS_TRANSFER_STRATEGY_ID = "PullRewardsTransferStrategy";
 export const ORACLE_AGGREGATOR_WRAPPER_BASE_ID =
   "oracle-aggregator-wrapper-base";
 
+// Chainlink Oracle Converters
+export const CHAINLINK_DECIMAL_CONVERTER_WSTKSCUSD_ID =
+  "ChainlinkDecimalConverter_wstkscUSD";
+
 // Wrapped dLEND ATokens
 export const DLEND_STATIC_A_TOKEN_FACTORY_ID = "dLend_StaticATokenFactory";
 export const DLEND_A_TOKEN_WRAPPER_PREFIX = "dLend_ATokenWrapper";
