@@ -5,6 +5,7 @@ import {
   createDStableFixture,
   DStableFixtureConfig,
   DUSD_CONFIG,
+  DS_CONFIG, // Import DS_CONFIG to use it in DStake config
 } from "../dstable/fixtures"; // Adjust path if needed
 import {
   getTokenContractForSymbol,
@@ -25,6 +26,7 @@ import {
   SDUSD_COLLATERAL_VAULT_ID,
   SDUSD_ROUTER_ID,
   DUSD_A_TOKEN_WRAPPER_ID,
+  DS_A_TOKEN_WRAPPER_ID, // Import DS_A_TOKEN_WRAPPER_ID
 } from "../../typescript/deploy-ids";
 import { dLendFixture } from "../dlend/fixtures";
 
@@ -62,6 +64,24 @@ export const SDUSD_CONFIG: DStakeFixtureConfig = {
   ],
 };
 
+// Add configuration for the sDS dSTAKE system
+export const SDS_CONFIG: DStakeFixtureConfig = {
+  dStableSymbol: "dS",
+  dStakeTokenSymbol: "sDS",
+  dStakeTokenContractId: "dStakeToken_sdS", // Defined in deploy/08_dstake/01_deploy_dstake_core.ts
+  collateralVaultContractId: "dStakeCollateralVault_sdS", // Defined in deploy/08_dstake/01_deploy_dstake_core.ts
+  routerContractId: "dStakeRouter_sdS", // Defined in deploy/08_dstake/01_deploy_dstake_core.ts
+  defaultVaultAssetSymbol: "wdS", // Placeholder - need to define the wrapped aToken symbol
+  underlyingDStableConfig: DS_CONFIG,
+  deploymentTags: [
+    "local-setup",
+    "oracles",
+    "dStable", // Need to ensure dS is included in dStable deployment
+    "dlend", // Need to ensure wDS aToken is deployed
+    DSTAKE_DEPLOYMENT_TAG,
+  ],
+};
+
 /**
  * Creates a fixture for dSTAKE testing using real contracts and dependencies
  * This leverages the dLEND fixture to ensure all dependencies are properly set up
@@ -74,21 +94,11 @@ export const createDStakeFixture = (config: DStakeFixtureConfig) => {
       const deployerSigner = await ethers.getSigner(deployer);
 
       // Run full deployment fixture to ensure all dependencies are available
-      try {
-        await deployments.fixture(config.deploymentTags);
-      } catch (error: any) {
-        console.error("Error during deployment fixture setup:", error.message);
-        // Fall back to mock deployments if real ones fail
-        await deployments.fixture(["mocks"]);
-      }
-
-      // Get the dLEND fixture for aTokens
-      const dLendFixtureResult = await dLendFixture();
+      await deployments.fixture(config.deploymentTags);
 
       // Get the dStable token
       const { contract: dStableToken, tokenInfo: dStableInfo } =
         await getTokenContractForSymbol(hre, deployer, config.dStableSymbol);
-      const dStableAddress = await dStableToken.getAddress();
 
       // Get dStake contracts from deployment
       const dStakeToken = await ethers.getContractAt(
@@ -107,8 +117,13 @@ export const createDStakeFixture = (config: DStakeFixtureConfig) => {
       );
 
       // Get the wrapped aToken (vault asset)
+      // Need to determine the correct aToken wrapper ID based on the dStable symbol
       const wrappedATokenAddress = (
-        await deployments.get(DUSD_A_TOKEN_WRAPPER_ID)
+        await deployments.get(
+          config.dStableSymbol === "dUSD"
+            ? DUSD_A_TOKEN_WRAPPER_ID
+            : DS_A_TOKEN_WRAPPER_ID
+        )
       ).address;
       const wrappedAToken = await ethers.getContractAt(
         "@openzeppelin/contracts/token/ERC20/IERC20.sol:IERC20",
@@ -119,19 +134,13 @@ export const createDStakeFixture = (config: DStakeFixtureConfig) => {
       const vaultAssetAddress = wrappedATokenAddress;
       let adapterAddress;
       let adapter;
-      try {
-        adapterAddress =
-          await collateralVault.adapterForAsset(vaultAssetAddress);
+      adapterAddress = await collateralVault.adapterForAsset(vaultAssetAddress);
+      if (adapterAddress !== ethers.ZeroAddress) {
         adapter = await ethers.getContractAt(
           "IdStableConversionAdapter",
           adapterAddress
         );
-      } catch (err: any) {
-        console.warn(
-          `Unable to get adapter for asset ${vaultAssetAddress}: ${err.message}`
-        );
-        // Set to null values that can be checked in tests
-        adapterAddress = ethers.ZeroAddress;
+      } else {
         adapter = null;
       }
 
@@ -148,7 +157,6 @@ export const createDStakeFixture = (config: DStakeFixtureConfig) => {
         adapter,
         adapterAddress,
         deployer: deployerSigner,
-        dLend: dLendFixtureResult, // Include dLEND for reference
       };
     }
   );
