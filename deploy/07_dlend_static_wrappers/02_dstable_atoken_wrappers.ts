@@ -1,13 +1,13 @@
+import { ethers } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
-import { ethers } from "hardhat";
 
 import { getConfig } from "../../config/config";
 import {
-  POOL_ADDRESSES_PROVIDER_ID,
-  INCENTIVES_PROXY_ID,
-  DUSD_A_TOKEN_WRAPPER_ID,
   DS_A_TOKEN_WRAPPER_ID,
+  DUSD_A_TOKEN_WRAPPER_ID,
+  INCENTIVES_PROXY_ID,
+  POOL_ADDRESSES_PROVIDER_ID,
 } from "../../typescript/deploy-ids";
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
@@ -21,18 +21,19 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // Get dLend contracts
   const poolAddressesProvider = await deployments.getOrNull(
-    POOL_ADDRESSES_PROVIDER_ID
+    POOL_ADDRESSES_PROVIDER_ID,
   );
+
   if (!poolAddressesProvider) {
     console.log(
-      "PoolAddressesProvider not found, skipping aToken wrapper deployment"
+      "PoolAddressesProvider not found, skipping aToken wrapper deployment",
     );
     return;
   }
 
   const poolAddressesProviderContract = await ethers.getContractAt(
     "IPoolAddressesProvider",
-    poolAddressesProvider.address
+    poolAddressesProvider.address,
   );
 
   const poolAddress = await poolAddressesProviderContract.getPool();
@@ -41,6 +42,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // Get rewards controller if available
   let rewardsControllerAddress = ethers.ZeroAddress;
   const rewardsController = await deployments.getOrNull(INCENTIVES_PROXY_ID);
+
   if (rewardsController) {
     rewardsControllerAddress = rewardsController.address;
   }
@@ -50,7 +52,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   try {
     const dUSDReserveData = await poolContract.getReserveData(
-      tokenAddresses.dUSD
+      tokenAddresses.dUSD,
     );
     dUSDAToken = dUSDReserveData.aTokenAddress;
   } catch (error: any) {
@@ -70,7 +72,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   if (dUSDAToken && dUSDAToken !== ethers.ZeroAddress) {
     const dUSDATokenContract = await ethers.getContractAt(
       "IERC20Detailed",
-      dUSDAToken
+      dUSDAToken,
     );
     const dUSDATokenSymbol = await dUSDATokenContract.symbol();
 
@@ -89,7 +91,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     });
   } else {
     console.log(
-      "dUSD aToken not found or invalid, skipping wrapper deployment"
+      "dUSD aToken not found or invalid, skipping wrapper deployment",
     );
   }
 
@@ -97,7 +99,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   if (dSAToken && dSAToken !== ethers.ZeroAddress) {
     const dSATokenContract = await ethers.getContractAt(
       "IERC20Detailed",
-      dSAToken
+      dSAToken,
     );
     const dSATokenSymbol = await dSATokenContract.symbol();
 

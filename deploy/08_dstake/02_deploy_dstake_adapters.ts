@@ -1,6 +1,6 @@
+import { ethers } from "hardhat";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
-import { network, ethers } from "hardhat";
 
 import { getConfig } from "../../config/config";
 import { DStakeInstanceConfig } from "../../config/types";
@@ -15,7 +15,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   if (!config.dStake) {
     console.log(
-      "No dStake configuration found for this network. Skipping adapters."
+      "No dStake configuration found for this network. Skipping adapters.",
     );
     return;
   }
@@ -23,6 +23,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // Fetch dLend PoolAddressesProvider address if needed by any adapter
   let dLendAddressesProviderAddress = "";
   const dLendProvider = await deployments.getOrNull(POOL_ADDRESSES_PROVIDER_ID);
+
   if (dLendProvider) {
     dLendAddressesProviderAddress = dLendProvider.address;
   }
@@ -30,38 +31,43 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // Validate all configs before deploying anything
   for (const instanceKey in config.dStake) {
     const instanceConfig = config.dStake[instanceKey] as DStakeInstanceConfig;
+
     if (
       !instanceConfig.dStable ||
       instanceConfig.dStable === ethers.ZeroAddress
     ) {
       throw new Error(
-        `Missing dStable address for dSTAKE instance ${instanceKey}`
+        `Missing dStable address for dSTAKE instance ${instanceKey}`,
       );
     }
+
     if (!instanceConfig.symbol) {
       throw new Error(`Missing symbol for dSTAKE instance ${instanceKey}`);
     }
+
     for (const adapterConfig of instanceConfig.adapters) {
       if (!adapterConfig.adapterContract) {
         throw new Error(
-          `Missing adapterContract for adapter in dSTAKE instance ${instanceKey}`
+          `Missing adapterContract for adapter in dSTAKE instance ${instanceKey}`,
         );
       }
+
       if (
         !adapterConfig.vaultAsset ||
         adapterConfig.vaultAsset === ethers.ZeroAddress
       ) {
         throw new Error(
-          `Missing vaultAsset for adapter ${adapterConfig.adapterContract} in dSTAKE instance ${instanceKey}`
+          `Missing vaultAsset for adapter ${adapterConfig.adapterContract} in dSTAKE instance ${instanceKey}`,
         );
       }
+
       // dLendConversionAdapter requires dLendAddressesProvider
       if (
         adapterConfig.adapterContract === "dLendConversionAdapter" &&
         !dLendAddressesProviderAddress
       ) {
         throw new Error(
-          `dLend PoolAddressesProvider not found. Cannot deploy dLendConversionAdapter for dSTAKE instance ${instanceKey}`
+          `dLend PoolAddressesProvider not found. Cannot deploy dLendConversionAdapter for dSTAKE instance ${instanceKey}`,
         );
       }
     }
@@ -74,22 +80,22 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
     // We need references to the router and collateral vault
     const collateralVaultDeploymentName = `dStakeCollateralVault_${instanceKey}`;
-    const routerDeploymentName = `dStakeRouter_${instanceKey}`;
 
     // Get the collateral vault address from deployment
     const collateralVault = await deployments.getOrNull(
-      collateralVaultDeploymentName
+      collateralVaultDeploymentName,
     );
 
     if (!collateralVault) {
       console.log(
-        `    Error: ${collateralVaultDeploymentName} not found. Make sure dStakeCore is deployed first.`
+        `    Error: ${collateralVaultDeploymentName} not found. Make sure dStakeCore is deployed first.`,
       );
       continue;
     }
 
     for (const adapterConfig of instanceConfig.adapters) {
       const { adapterContract, vaultAsset } = adapterConfig;
+
       if (adapterContract === "WrappedDLendConversionAdapter") {
         const deploymentName = `${adapterContract}_${dStableSymbol}`;
         // console.log(`    Deploying ${deploymentName}...`);

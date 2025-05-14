@@ -28,7 +28,7 @@ import { Config } from "../types";
  * @returns The configuration for the network
  */
 export async function getConfig(
-  _hre: HardhatRuntimeEnvironment
+  _hre: HardhatRuntimeEnvironment,
 ): Promise<Config> {
   // Token info will only be populated after their deployment
   const dUSDDeployment = await _hre.deployments.getOrNull(DUSD_TOKEN_ID);
@@ -46,11 +46,11 @@ export async function getConfig(
   const wstkscUSDDeployment = await _hre.deployments.getOrNull("wstkscUSD");
 
   // Fetch deployed dLend StaticATokenLM wrappers
-  const dLend_ATokenWrapper_dUSD_Deployment = await _hre.deployments.getOrNull(
-    "dLend_ATokenWrapper_dUSD"
+  const dLendATokenWrapperDUSDDeployment = await _hre.deployments.getOrNull(
+    "dLend_ATokenWrapper_dUSD",
   );
-  const dLend_ATokenWrapper_dS_Deployment = await _hre.deployments.getOrNull(
-    "dLend_ATokenWrapper_dS"
+  const dLendATokenWrapperDSDeployment = await _hre.deployments.getOrNull(
+    "dLend_ATokenWrapper_dS",
   );
 
   // Get mock oracle deployments
@@ -58,17 +58,17 @@ export async function getConfig(
 
   // REFACTOR: Load addresses directly using getOrNull
   const mockOracleAddressesDeployment = await _hre.deployments.getOrNull(
-    "MockOracleNameToAddress"
+    "MockOracleNameToAddress",
   );
 
   if (mockOracleAddressesDeployment?.linkedData) {
     Object.assign(
       mockOracleNameToAddress,
-      mockOracleAddressesDeployment.linkedData
+      mockOracleAddressesDeployment.linkedData,
     );
   } else {
     console.warn(
-      "WARN: MockOracleNameToAddress deployment not found or has no linkedData. Oracle addresses might be incomplete."
+      "WARN: MockOracleNameToAddress deployment not found or has no linkedData. Oracle addresses might be incomplete.",
     );
   }
 
@@ -378,13 +378,13 @@ export async function getConfig(
         adapters: [
           {
             vaultAsset: emptyStringIfUndefined(
-              dLend_ATokenWrapper_dUSD_Deployment?.address
+              dLendATokenWrapperDUSDDeployment?.address,
             ),
             adapterContract: "WrappedDLendConversionAdapter",
           },
         ],
         defaultDepositVaultAsset: emptyStringIfUndefined(
-          dLend_ATokenWrapper_dUSD_Deployment?.address
+          dLendATokenWrapperDUSDDeployment?.address,
         ),
         collateralVault: "dStakeCollateralVault_sdUSD",
         collateralExchangers: [user1],
@@ -399,13 +399,13 @@ export async function getConfig(
         adapters: [
           {
             vaultAsset: emptyStringIfUndefined(
-              dLend_ATokenWrapper_dS_Deployment?.address
+              dLendATokenWrapperDSDeployment?.address,
             ),
             adapterContract: "WrappedDLendConversionAdapter",
           },
         ],
         defaultDepositVaultAsset: emptyStringIfUndefined(
-          dLend_ATokenWrapper_dS_Deployment?.address
+          dLendATokenWrapperDSDeployment?.address,
         ),
         collateralVault: "dStakeCollateralVault_sdS",
         collateralExchangers: [user1],

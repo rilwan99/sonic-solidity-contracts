@@ -23,14 +23,14 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       args: [poolAddress], // pool address only
       contract: "StaticATokenFactory",
       autoMine: true,
-    }
+    },
   );
 
   if (staticATokenFactoryDeployment.newlyDeployed) {
     // Get contract instances
     const staticATokenFactory = await ethers.getContractAt(
       "StaticATokenFactory",
-      staticATokenFactoryDeployment.address
+      staticATokenFactoryDeployment.address,
     );
     const pool = await ethers.getContractAt("IPool", poolAddress);
 
@@ -53,7 +53,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
           // Manually encode the function data
           const callData = staticATokenFactory.interface.encodeFunctionData(
             "createStaticATokens",
-            [reservesChunk]
+            [reservesChunk],
           );
           // Send a raw transaction
           const tx = await signer.sendTransaction({
@@ -63,13 +63,13 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
           await tx.wait();
         } catch (error: any) {
           console.error(
-            `  Failed to create StaticATokens for chunk ${chunkIndex + 1}: ${error.message || String(error)}`
+            `  Failed to create StaticATokens for chunk ${chunkIndex + 1}: ${error.message || String(error)}`,
           );
         }
       }
     } else {
       console.log(
-        "No reserves found in the Pool, skipping createStaticATokens"
+        "No reserves found in the Pool, skipping createStaticATokens",
       );
     }
   }
