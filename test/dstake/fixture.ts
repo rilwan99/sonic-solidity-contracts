@@ -25,6 +25,9 @@ import {
   SDUSD_DSTAKE_TOKEN_ID,
   SDUSD_COLLATERAL_VAULT_ID,
   SDUSD_ROUTER_ID,
+  SDS_DSTAKE_TOKEN_ID,
+  SDS_COLLATERAL_VAULT_ID,
+  SDS_ROUTER_ID,
   DUSD_A_TOKEN_WRAPPER_ID,
   DS_A_TOKEN_WRAPPER_ID, // Import DS_A_TOKEN_WRAPPER_ID
 } from "../../typescript/deploy-ids";
@@ -68,9 +71,9 @@ export const SDUSD_CONFIG: DStakeFixtureConfig = {
 export const SDS_CONFIG: DStakeFixtureConfig = {
   dStableSymbol: "dS",
   dStakeTokenSymbol: "sDS",
-  dStakeTokenContractId: "dStakeToken_sdS", // Defined in deploy/08_dstake/01_deploy_dstake_core.ts
-  collateralVaultContractId: "dStakeCollateralVault_sdS", // Defined in deploy/08_dstake/01_deploy_dstake_core.ts
-  routerContractId: "dStakeRouter_sdS", // Defined in deploy/08_dstake/01_deploy_dstake_core.ts
+  dStakeTokenContractId: SDS_DSTAKE_TOKEN_ID,
+  collateralVaultContractId: SDS_COLLATERAL_VAULT_ID,
+  routerContractId: SDS_ROUTER_ID,
   defaultVaultAssetSymbol: "wdS", // Placeholder - need to define the wrapped aToken symbol
   underlyingDStableConfig: DS_CONFIG,
   deploymentTags: [
