@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IdStableConversionAdapter} from "../interfaces/IdStableConversionAdapter.sol";
+import {IDStableConversionAdapter} from "../interfaces/IDStableConversionAdapter.sol";
 import {IStaticATokenLM} from "../../atoken_wrapper/interfaces/IStaticATokenLM.sol"; // Interface for StaticATokenLM
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
@@ -14,7 +14,7 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
  * @dev Implements the IDStableConversionAdapter interface.
  *      Interacts with a specific StaticATokenLM contract provided at deployment.
  */
-contract WrappedDLendConversionAdapter is IdStableConversionAdapter {
+contract WrappedDLendConversionAdapter is IDStableConversionAdapter {
     using SafeERC20 for IERC20;
 
     // --- Errors ---
@@ -26,13 +26,13 @@ contract WrappedDLendConversionAdapter is IdStableConversionAdapter {
     // --- State ---
     address public immutable dStable; // The underlying dSTABLE asset (e.g., dUSD)
     IStaticATokenLM public immutable wrappedDLendToken; // The wrapped dLEND aToken (StaticATokenLM instance, e.g., wddUSD)
-    address public immutable collateralVault; // The dStakeCollateralVault to deposit wrappedDLendToken into
+    address public immutable collateralVault; // The DStakeCollateralVault to deposit wrappedDLendToken into
 
     // --- Constructor ---
     /**
      * @param _dStable The address of the dSTABLE asset (e.g., dUSD)
      * @param _wrappedDLendToken The address of the wrapped dLEND token (StaticATokenLM, e.g., wddUSD)
-     * @param _collateralVault The address of the dStakeCollateralVault
+     * @param _collateralVault The address of the DStakeCollateralVault
      */
     constructor(
         address _dStable,
@@ -59,7 +59,7 @@ contract WrappedDLendConversionAdapter is IdStableConversionAdapter {
     // --- IDStableConversionAdapter Implementation ---
 
     /**
-     * @inheritdoc IdStableConversionAdapter
+     * @inheritdoc IDStableConversionAdapter
      * @dev Converts dStable -> wrappedDLendToken by depositing into StaticATokenLM.
      *      The StaticATokenLM contract MUST be pre-approved to spend dStable held by this adapter.
      *      The StaticATokenLM contract mints the wrappedDLendToken directly to the collateralVault.
@@ -98,7 +98,7 @@ contract WrappedDLendConversionAdapter is IdStableConversionAdapter {
     }
 
     /**
-     * @inheritdoc IdStableConversionAdapter
+     * @inheritdoc IDStableConversionAdapter
      * @dev Converts wrappedDLendToken -> dStable by withdrawing from StaticATokenLM.
      *      The StaticATokenLM contract sends the dStable directly to msg.sender.
      */
@@ -135,7 +135,7 @@ contract WrappedDLendConversionAdapter is IdStableConversionAdapter {
     }
 
     /**
-     * @inheritdoc IdStableConversionAdapter
+     * @inheritdoc IDStableConversionAdapter
      * @dev Uses StaticATokenLM's previewRedeem function to get the underlying value (dStable).
      */
     function assetValueInDStable(
@@ -154,14 +154,14 @@ contract WrappedDLendConversionAdapter is IdStableConversionAdapter {
     }
 
     /**
-     * @inheritdoc IdStableConversionAdapter
+     * @inheritdoc IDStableConversionAdapter
      */
     function vaultAsset() external view override returns (address) {
         return address(wrappedDLendToken);
     }
 
     /**
-     * @inheritdoc IdStableConversionAdapter
+     * @inheritdoc IDStableConversionAdapter
      * @dev Preview the result of converting a given dSTABLE amount to wrappedDLendToken.
      */
     function previewConvertToVaultAsset(
@@ -179,7 +179,7 @@ contract WrappedDLendConversionAdapter is IdStableConversionAdapter {
     }
 
     /**
-     * @inheritdoc IdStableConversionAdapter
+     * @inheritdoc IDStableConversionAdapter
      * @dev Preview the result of converting a given wrappedDLendToken amount to dSTABLE.
      */
     function previewConvertFromVaultAsset(

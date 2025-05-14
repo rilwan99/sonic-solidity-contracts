@@ -2,15 +2,15 @@
 pragma solidity ^0.8.20;
 
 /**
- * @title IdStakeCollateralVault Interface
- * @notice Defines the external functions of the dStakeCollateralVault required by other
- *         contracts in the dSTAKE system, primarily the dStakeToken.
+ * @title IDStakeCollateralVault Interface
+ * @notice Defines the external functions of the DStakeCollateralVault required by other
+ *         contracts in the dSTAKE system, primarily the DStakeToken.
  */
-interface IdStakeCollateralVault {
+interface IDStakeCollateralVault {
     /**
      * @notice Calculates the total value of all managed `vault assets` held by the vault,
      *         denominated in the underlying dStable asset.
-     * @dev This is typically called by the dStakeToken's `totalAssets()` function.
+     * @dev This is typically called by the DStakeToken's `totalAssets()` function.
      * @return dStableValue The total value of managed assets in terms of the dStable asset.
      */
     function totalValueInDStable() external view returns (uint256 dStableValue);
@@ -22,17 +22,17 @@ interface IdStakeCollateralVault {
     function dStable() external view returns (address);
 
     /**
-     * @notice The dStakeToken contract address this vault serves.
+     * @notice The DStakeToken contract address this vault serves.
      */
     function dStakeToken() external view returns (address);
 
     /**
-     * @notice The dStakeRouter contract address allowed to interact.
+     * @notice The DStakeRouter contract address allowed to interact.
      */
     function router() external view returns (address);
 
     /**
-     * @notice Mapping from vault asset address to its corresponding IdStableConversionAdapter address.
+     * @notice Mapping from vault asset address to its corresponding IDStableConversionAdapter address.
      */
     function adapterForAsset(address) external view returns (address);
 
@@ -55,7 +55,7 @@ interface IdStakeCollateralVault {
     ) external;
 
     /**
-     * @notice Sets the address of the dStakeRouter contract.
+     * @notice Sets the address of the DStakeRouter contract.
      * @dev Only callable by an address with the DEFAULT_ADMIN_ROLE.
      * @param _newRouter The address of the new router contract.
      */
@@ -65,7 +65,7 @@ interface IdStakeCollateralVault {
      * @notice Adds support for a new `vaultAsset` and its associated conversion adapter.
      * @dev Only callable by an address with the DEFAULT_ADMIN_ROLE.
      * @param vaultAsset The address of the new vault asset to support.
-     * @param adapterAddress The address of the IdStableConversionAdapter for this asset.
+     * @param adapterAddress The address of the IDStableConversionAdapter for this asset.
      */
     function addAdapter(address vaultAsset, address adapterAddress) external;
 

@@ -386,7 +386,7 @@ export async function getConfig(
         defaultDepositVaultAsset: emptyStringIfUndefined(
           dLendATokenWrapperDUSDDeployment?.address,
         ),
-        collateralVault: "dStakeCollateralVault_sdUSD",
+        collateralVault: "DStakeCollateralVault_sdUSD",
         collateralExchangers: [user1],
       },
       sdS: {
@@ -407,7 +407,7 @@ export async function getConfig(
         defaultDepositVaultAsset: emptyStringIfUndefined(
           dLendATokenWrapperDSDeployment?.address,
         ),
-        collateralVault: "dStakeCollateralVault_sdS",
+        collateralVault: "DStakeCollateralVault_sdS",
         collateralExchangers: [user1],
       },
     },

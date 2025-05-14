@@ -94,9 +94,9 @@ export const DS_A_TOKEN_WRAPPER_ID = `${DLEND_A_TOKEN_WRAPPER_PREFIX}_dS`;
 export const DSTAKE_DEPLOYMENT_TAG = "dStake"; // Define the deployment tag
 
 // dSTAKE deploy ID prefixes
-export const DSTAKE_TOKEN_ID_PREFIX = "dStakeToken";
-export const DSTAKE_COLLATERAL_VAULT_ID_PREFIX = "dStakeCollateralVault";
-export const DSTAKE_ROUTER_ID_PREFIX = "dStakeRouter";
+export const DSTAKE_TOKEN_ID_PREFIX = "DStakeToken";
+export const DSTAKE_COLLATERAL_VAULT_ID_PREFIX = "DStakeCollateralVault";
+export const DSTAKE_ROUTER_ID_PREFIX = "DStakeRouter";
 
 // dSTAKE specific instance IDs
 export const SDUSD_DSTAKE_TOKEN_ID = `${DSTAKE_TOKEN_ID_PREFIX}_sdUSD`;

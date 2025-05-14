@@ -79,7 +79,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const dStableSymbol = instanceConfig.symbol;
 
     // We need references to the router and collateral vault
-    const collateralVaultDeploymentName = `dStakeCollateralVault_${instanceKey}`;
+    const collateralVaultDeploymentName = `DStakeCollateralVault_${instanceKey}`;
 
     // Get the collateral vault address from deployment
     const collateralVault = await deployments.getOrNull(

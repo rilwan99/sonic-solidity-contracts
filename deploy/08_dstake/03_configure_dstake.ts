@@ -92,11 +92,11 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // All configs are valid, proceed with configuration
   for (const instanceKey in config.dStake) {
     const instanceConfig = config.dStake[instanceKey] as DStakeInstanceConfig;
-    const dStakeTokenDeploymentName = `dStakeToken_${instanceKey}`;
-    const collateralVaultDeploymentName = `dStakeCollateralVault_${instanceKey}`;
-    const routerDeploymentName = `dStakeRouter_${instanceKey}`;
+    const DStakeTokenDeploymentName = `DStakeToken_${instanceKey}`;
+    const collateralVaultDeploymentName = `DStakeCollateralVault_${instanceKey}`;
+    const routerDeploymentName = `DStakeRouter_${instanceKey}`;
 
-    const _dStakeTokenDeployment = await get(dStakeTokenDeploymentName);
+    const _DStakeTokenDeployment = await get(DStakeTokenDeploymentName);
     const collateralVaultDeployment = await get(collateralVaultDeploymentName);
     const routerDeployment = await get(routerDeploymentName);
 
@@ -107,32 +107,32 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const feeManagerSigner =
       initialFeeManager === deployer ? deployer : initialFeeManager;
 
-    // --- Configure dStakeToken ---
-    const currentRouter = await read(dStakeTokenDeploymentName, "router");
+    // --- Configure DStakeToken ---
+    const currentRouter = await read(DStakeTokenDeploymentName, "router");
 
     if (currentRouter !== routerDeployment.address) {
       await execute(
-        dStakeTokenDeploymentName,
+        DStakeTokenDeploymentName,
         { from: adminSigner, log: false },
         "setRouter",
         routerDeployment.address,
       );
     }
     const currentVault = await read(
-      dStakeTokenDeploymentName,
+      DStakeTokenDeploymentName,
       "collateralVault",
     );
 
     if (currentVault !== collateralVaultDeployment.address) {
       await execute(
-        dStakeTokenDeploymentName,
+        DStakeTokenDeploymentName,
         { from: adminSigner, log: false },
         "setCollateralVault",
         collateralVaultDeployment.address,
       );
     }
     const currentFee = await read(
-      dStakeTokenDeploymentName,
+      DStakeTokenDeploymentName,
       "withdrawalFeeBps",
     );
 
@@ -141,14 +141,14 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       instanceConfig.initialWithdrawalFeeBps.toString()
     ) {
       await execute(
-        dStakeTokenDeploymentName,
+        DStakeTokenDeploymentName,
         { from: feeManagerSigner, log: false },
         "setWithdrawalFee",
         instanceConfig.initialWithdrawalFeeBps,
       );
     }
 
-    // --- Configure dStakeCollateralVault ---
+    // --- Configure DStakeCollateralVault ---
     const vaultRouter = await read(collateralVaultDeploymentName, "router");
     const vaultRouterRole = await read(
       collateralVaultDeploymentName,
@@ -191,7 +191,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       }
     }
 
-    // --- Configure dStakeRouter ---
+    // --- Configure DStakeRouter ---
     const collateralExchangerRole = await read(
       routerDeploymentName,
       "COLLATERAL_EXCHANGER_ROLE",

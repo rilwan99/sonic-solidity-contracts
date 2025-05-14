@@ -93,10 +93,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // All configs are valid, proceed with deployment
   for (const instanceKey in config.dStake) {
     const instanceConfig = config.dStake[instanceKey] as DStakeInstanceConfig;
-    const dStakeTokenDeploymentName = `dStakeToken_${instanceKey}`;
-    const dStakeTokenDeployment = await deploy(dStakeTokenDeploymentName, {
+    const DStakeTokenDeploymentName = `DStakeToken_${instanceKey}`;
+    const DStakeTokenDeployment = await deploy(DStakeTokenDeploymentName, {
       from: deployer,
-      contract: "dStakeToken",
+      contract: "DStakeToken",
       args: [
         instanceConfig.dStable,
         instanceConfig.name,
@@ -107,28 +107,28 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       log: false,
     });
 
-    const collateralVaultDeploymentName = `dStakeCollateralVault_${instanceKey}`;
+    const collateralVaultDeploymentName = `DStakeCollateralVault_${instanceKey}`;
     const collateralVaultDeployment = await deploy(
       collateralVaultDeploymentName,
       {
         from: deployer,
-        contract: "dStakeCollateralVault",
-        args: [dStakeTokenDeployment.address, instanceConfig.dStable],
+        contract: "DStakeCollateralVault",
+        args: [DStakeTokenDeployment.address, instanceConfig.dStable],
         log: false,
       },
     );
 
-    const routerDeploymentName = `dStakeRouter_${instanceKey}`;
+    const routerDeploymentName = `DStakeRouter_${instanceKey}`;
     const routerDeployment = await deploy(routerDeploymentName, {
       from: deployer,
-      contract: "dStakeRouter",
-      args: [dStakeTokenDeployment.address, collateralVaultDeployment.address],
+      contract: "DStakeRouter",
+      args: [DStakeTokenDeployment.address, collateralVaultDeployment.address],
       log: false,
     });
 
     // --- Grant Vault Admin Role to Initial Admin ---
     const collateralVault = await hre.ethers.getContractAt(
-      "dStakeCollateralVault",
+      "DStakeCollateralVault",
       collateralVaultDeployment.address,
     );
     const adminRole = ethers.ZeroHash;
@@ -147,7 +147,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
     // --- Grant Router Admin Role to Initial Admin ---
     const router = await hre.ethers.getContractAt(
-      "dStakeRouter",
+      "DStakeRouter",
       routerDeployment.address,
     );
     const routerAdminRole = ethers.ZeroHash;

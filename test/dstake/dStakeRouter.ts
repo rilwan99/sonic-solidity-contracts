@@ -5,7 +5,7 @@ import {
   DStakeRouter,
   DStakeCollateralVault,
   DStakeToken,
-  IdStableConversionAdapter,
+  IDStableConversionAdapter,
   ERC20,
   IERC20,
 } from "../../typechain-types";
@@ -13,7 +13,7 @@ import { createDStakeFixture, SDUSD_CONFIG } from "./fixture";
 import { DStakeRouter__factory } from "../../typechain-types/factories/contracts/vaults/dstake/DStakeRouter__factory";
 import { ERC20StablecoinUpgradeable } from "../../typechain-types/contracts/dstable/ERC20StablecoinUpgradeable";
 
-describe("dStakeRouter", function () {
+describe("DStakeRouter", function () {
   let routerAddress: string;
   let collateralVaultAddress: string;
   let deployerAddr: string;
@@ -22,13 +22,13 @@ describe("dStakeRouter", function () {
   let deployerSigner: any;
   let user1Signer: any;
   let user2Signer: any;
-  let dStakeToken: DStakeToken;
+  let DStakeToken: DStakeToken;
   let collateralVault: DStakeCollateralVault;
   let router: DStakeRouter;
   let dStableToken: IERC20;
   let vaultAssetToken: IERC20;
   let vaultAssetAddress: string;
-  let adapter: IdStableConversionAdapter;
+  let adapter: IDStableConversionAdapter;
   let adapterAddress: string;
 
   beforeEach(async function () {
@@ -41,14 +41,14 @@ describe("dStakeRouter", function () {
     user2Signer = await ethers.getSigner(user2Addr);
 
     const fixture = await createDStakeFixture(SDUSD_CONFIG)();
-    dStakeToken = fixture.dStakeToken as unknown as DStakeToken;
+    DStakeToken = fixture.DStakeToken as unknown as DStakeToken;
     collateralVault =
       fixture.collateralVault as unknown as DStakeCollateralVault;
     router = fixture.router as unknown as DStakeRouter;
     dStableToken = fixture.dStableToken as unknown as IERC20;
     vaultAssetToken = fixture.vaultAssetToken as unknown as IERC20;
     vaultAssetAddress = fixture.vaultAssetAddress;
-    adapter = fixture.adapter as unknown as IdStableConversionAdapter;
+    adapter = fixture.adapter as unknown as IDStableConversionAdapter;
     adapterAddress = fixture.adapterAddress;
     routerAddress = await router.getAddress();
     collateralVaultAddress = await collateralVault.getAddress();
@@ -57,7 +57,7 @@ describe("dStakeRouter", function () {
   describe("Initialization and State", function () {
     it("should set correct immutable addresses", async function () {
       expect(await router.dStakeToken()).to.equal(
-        await dStakeToken.getAddress()
+        await DStakeToken.getAddress()
       );
       expect(await router.collateralVault()).to.equal(
         await collateralVault.getAddress()
@@ -71,7 +71,7 @@ describe("dStakeRouter", function () {
         factory.deploy(ZeroAddress, await collateralVault.getAddress())
       ).to.be.revertedWithCustomError(factory, "ZeroAddress");
       await expect(
-        factory.deploy(await dStakeToken.getAddress(), ZeroAddress)
+        factory.deploy(await DStakeToken.getAddress(), ZeroAddress)
       ).to.be.revertedWithCustomError(factory, "ZeroAddress");
     });
 
@@ -80,9 +80,9 @@ describe("dStakeRouter", function () {
       expect(await router.hasRole(adminRole, deployerAddr)).to.be.true;
     });
 
-    it("should grant DSTAKE_TOKEN_ROLE to the dStakeToken address", async function () {
+    it("should grant DSTAKE_TOKEN_ROLE to the DStakeToken address", async function () {
       const tokenRole = await router.DSTAKE_TOKEN_ROLE();
-      expect(await router.hasRole(tokenRole, await dStakeToken.getAddress())).to
+      expect(await router.hasRole(tokenRole, await DStakeToken.getAddress())).to
         .be.true;
     });
 
@@ -212,8 +212,8 @@ describe("dStakeRouter", function () {
     const depositAmount = ethers.parseUnits("10", 18);
 
     beforeEach(async function () {
-      const dStakeTokenAddress = await dStakeToken.getAddress();
-      // Grant deployer minter role and mint dStable to dStakeToken contract
+      const DStakeTokenAddress = await DStakeToken.getAddress();
+      // Grant deployer minter role and mint dStable to DStakeToken contract
       const dstableMinter = (await ethers.getContractAt(
         "ERC20StablecoinUpgradeable",
         await dStableToken.getAddress(),
@@ -221,35 +221,35 @@ describe("dStakeRouter", function () {
       )) as ERC20StablecoinUpgradeable;
       const MINTER_ROLE = await dstableMinter.MINTER_ROLE();
       await dstableMinter.grantRole(MINTER_ROLE, deployerAddr);
-      await dstableMinter.mint(dStakeTokenAddress, depositAmount);
-      // Impersonate the dStakeToken contract for auth-required calls
+      await dstableMinter.mint(DStakeTokenAddress, depositAmount);
+      // Impersonate the DStakeToken contract for auth-required calls
       await ethers.provider.send("hardhat_impersonateAccount", [
-        dStakeTokenAddress,
+        DStakeTokenAddress,
       ]);
-      // Fund impersonated dStakeToken with ETH for gas
+      // Fund impersonated DStakeToken with ETH for gas
       await ethers.provider.send("hardhat_setBalance", [
-        dStakeTokenAddress,
+        DStakeTokenAddress,
         "0x1000000000000000000",
       ]);
     });
 
-    it("non-dStakeToken cannot call deposit", async function () {
+    it("non-DStakeToken cannot call deposit", async function () {
       await expect(
         router.connect(user1Signer).deposit(depositAmount, user1Addr)
       ).to.be.reverted;
     });
 
-    it("dStakeToken can deposit, emits event and deposits vault asset to collateralVault", async function () {
-      const dStakeTokenAddress = await dStakeToken.getAddress();
-      const dStakeTokenSigner = await ethers.getSigner(dStakeTokenAddress);
+    it("DStakeToken can deposit, emits event and deposits vault asset to collateralVault", async function () {
+      const DStakeTokenAddress = await DStakeToken.getAddress();
+      const DStakeTokenSigner = await ethers.getSigner(DStakeTokenAddress);
       await dStableToken
-        .connect(dStakeTokenSigner)
+        .connect(DStakeTokenSigner)
         .approve(routerAddress, depositAmount);
       const [, expectedVaultAssetAmount] =
         await adapter.previewConvertToVaultAsset(depositAmount);
       // Check event emission and balances
       await expect(
-        router.connect(dStakeTokenSigner).deposit(depositAmount, user1Addr)
+        router.connect(DStakeTokenSigner).deposit(depositAmount, user1Addr)
       )
         .to.emit(router, "Deposited")
         .withArgs(
@@ -263,7 +263,7 @@ describe("dStakeRouter", function () {
       );
     });
 
-    it("non-dStakeToken cannot call withdraw", async function () {
+    it("non-DStakeToken cannot call withdraw", async function () {
       await expect(
         router
           .connect(user1Signer)
@@ -271,20 +271,20 @@ describe("dStakeRouter", function () {
       ).to.be.reverted;
     });
 
-    it("dStakeToken can withdraw, emits event and transfers dStable to receiver", async function () {
-      const dStakeTokenAddress = await dStakeToken.getAddress();
-      const dStakeTokenSigner = await ethers.getSigner(dStakeTokenAddress);
+    it("DStakeToken can withdraw, emits event and transfers dStable to receiver", async function () {
+      const DStakeTokenAddress = await DStakeToken.getAddress();
+      const DStakeTokenSigner = await ethers.getSigner(DStakeTokenAddress);
       await dStableToken
-        .connect(dStakeTokenSigner)
+        .connect(DStakeTokenSigner)
         .approve(routerAddress, depositAmount);
       await router
-        .connect(dStakeTokenSigner)
+        .connect(DStakeTokenSigner)
         .deposit(depositAmount, routerAddress);
       const initial = await dStableToken.balanceOf(user1Addr);
       // Check event emission and balance
       await expect(
         router
-          .connect(dStakeTokenSigner)
+          .connect(DStakeTokenSigner)
           .withdraw(depositAmount, user1Addr, user1Addr)
       ).to.emit(router, "Withdrawn");
       const finalBal = await dStableToken.balanceOf(user1Addr);
@@ -297,8 +297,8 @@ describe("dStakeRouter", function () {
     const exchangeAmount = ethers.parseUnits("5", 18);
 
     beforeEach(async function () {
-      const dStakeTokenAddress = await dStakeToken.getAddress();
-      // Grant deployer minter role and mint dStable to dStakeToken contract
+      const DStakeTokenAddress = await DStakeToken.getAddress();
+      // Grant deployer minter role and mint dStable to DStakeToken contract
       const dstableMinter = (await ethers.getContractAt(
         "ERC20StablecoinUpgradeable",
         await dStableToken.getAddress(),
@@ -306,22 +306,22 @@ describe("dStakeRouter", function () {
       )) as ERC20StablecoinUpgradeable;
       const MINTER_ROLE = await dstableMinter.MINTER_ROLE();
       await dstableMinter.grantRole(MINTER_ROLE, deployerAddr);
-      await dstableMinter.mint(dStakeTokenAddress, depositAmount);
-      // Impersonate the dStakeToken contract for deposit
+      await dstableMinter.mint(DStakeTokenAddress, depositAmount);
+      // Impersonate the DStakeToken contract for deposit
       await ethers.provider.send("hardhat_impersonateAccount", [
-        dStakeTokenAddress,
+        DStakeTokenAddress,
       ]);
-      // Fund impersonated dStakeToken with ETH for gas
+      // Fund impersonated DStakeToken with ETH for gas
       await ethers.provider.send("hardhat_setBalance", [
-        dStakeTokenAddress,
+        DStakeTokenAddress,
         "0x1000000000000000000",
       ]);
-      const dStakeTokenSigner = await ethers.getSigner(dStakeTokenAddress);
+      const DStakeTokenSigner = await ethers.getSigner(DStakeTokenAddress);
       await dStableToken
-        .connect(dStakeTokenSigner)
+        .connect(DStakeTokenSigner)
         .approve(routerAddress, depositAmount);
       await router
-        .connect(dStakeTokenSigner)
+        .connect(DStakeTokenSigner)
         .deposit(depositAmount, routerAddress);
       await router.connect(deployerSigner).addCollateralExchanger(user1Addr);
     });
@@ -385,8 +385,8 @@ describe("dStakeRouter", function () {
     const exchangeAmount = ethers.parseUnits("5", 18);
 
     beforeEach(async function () {
-      const dStakeTokenAddress = await dStakeToken.getAddress();
-      // Grant deployer minter role and mint dStable to dStakeToken contract
+      const DStakeTokenAddress = await DStakeToken.getAddress();
+      // Grant deployer minter role and mint dStable to DStakeToken contract
       const dstableMinter = (await ethers.getContractAt(
         "ERC20StablecoinUpgradeable",
         await dStableToken.getAddress(),
@@ -394,22 +394,22 @@ describe("dStakeRouter", function () {
       )) as ERC20StablecoinUpgradeable;
       const MINTER_ROLE = await dstableMinter.MINTER_ROLE();
       await dstableMinter.grantRole(MINTER_ROLE, deployerAddr);
-      await dstableMinter.mint(dStakeTokenAddress, depositAmount);
-      // Impersonate the dStakeToken contract for deposit
+      await dstableMinter.mint(DStakeTokenAddress, depositAmount);
+      // Impersonate the DStakeToken contract for deposit
       await ethers.provider.send("hardhat_impersonateAccount", [
-        dStakeTokenAddress,
+        DStakeTokenAddress,
       ]);
-      // Fund impersonated dStakeToken with ETH for gas
+      // Fund impersonated DStakeToken with ETH for gas
       await ethers.provider.send("hardhat_setBalance", [
-        dStakeTokenAddress,
+        DStakeTokenAddress,
         "0x1000000000000000000",
       ]);
-      const dStakeTokenSigner = await ethers.getSigner(dStakeTokenAddress);
+      const DStakeTokenSigner = await ethers.getSigner(DStakeTokenAddress);
       await dStableToken
-        .connect(dStakeTokenSigner)
+        .connect(DStakeTokenSigner)
         .approve(routerAddress, depositAmount);
       await router
-        .connect(dStakeTokenSigner)
+        .connect(DStakeTokenSigner)
         .deposit(depositAmount, routerAddress);
       await router.connect(deployerSigner).addCollateralExchanger(user1Addr);
       // Impersonate the collateralVault for transferring vault assets

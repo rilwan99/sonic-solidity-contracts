@@ -15,7 +15,7 @@ import {
   DStakeToken,
   DStakeCollateralVault,
   DStakeRouter,
-  IdStableConversionAdapter,
+  IDStableConversionAdapter,
   ERC20, // Use for tokens to avoid IERC20 ambiguity
 } from "../../typechain-types"; // Adjust paths as needed
 // Use specific IERC20 implementation to avoid ambiguity
@@ -36,13 +36,13 @@ import { dLendFixture } from "../dlend/fixtures";
 // Interface defining the structure of the fixture's config
 export interface DStakeFixtureConfig {
   dStableSymbol: "dUSD" | "dS"; // Underlying dStable
-  dStakeTokenSymbol: string; // e.g., "sdUSD"
-  dStakeTokenContractId: string;
+  DStakeTokenSymbol: string; // e.g., "sdUSD"
+  DStakeTokenContractId: string;
   collateralVaultContractId: string;
   routerContractId: string;
   // Specify the default vault asset for testing
   defaultVaultAssetSymbol: string; // e.g., "wddUSD"
-  // Added name property for the dStakeToken
+  // Added name property for the DStakeToken
   name?: string; // Optional name for the token, will use "Staked {dStableSymbol}" if not provided
   underlyingDStableConfig: DStableFixtureConfig; // Config for the base dStable
   deploymentTags: string[]; // Tags needed to deploy dSTAKE and dependencies
@@ -51,8 +51,8 @@ export interface DStakeFixtureConfig {
 // Configuration for the sdUSD dSTAKE system
 export const SDUSD_CONFIG: DStakeFixtureConfig = {
   dStableSymbol: "dUSD",
-  dStakeTokenSymbol: "sdUSD",
-  dStakeTokenContractId: SDUSD_DSTAKE_TOKEN_ID,
+  DStakeTokenSymbol: "sdUSD",
+  DStakeTokenContractId: SDUSD_DSTAKE_TOKEN_ID,
   collateralVaultContractId: SDUSD_COLLATERAL_VAULT_ID,
   routerContractId: SDUSD_ROUTER_ID,
   defaultVaultAssetSymbol: "wddUSD", // Wrapped dLEND dUSD aToken
@@ -70,8 +70,8 @@ export const SDUSD_CONFIG: DStakeFixtureConfig = {
 // Add configuration for the sDS dSTAKE system
 export const SDS_CONFIG: DStakeFixtureConfig = {
   dStableSymbol: "dS",
-  dStakeTokenSymbol: "sDS",
-  dStakeTokenContractId: SDS_DSTAKE_TOKEN_ID,
+  DStakeTokenSymbol: "sDS",
+  DStakeTokenContractId: SDS_DSTAKE_TOKEN_ID,
   collateralVaultContractId: SDS_COLLATERAL_VAULT_ID,
   routerContractId: SDS_ROUTER_ID,
   defaultVaultAssetSymbol: "wdS", // Placeholder - need to define the wrapped aToken symbol
@@ -104,18 +104,18 @@ export const createDStakeFixture = (config: DStakeFixtureConfig) => {
         await getTokenContractForSymbol(hre, deployer, config.dStableSymbol);
 
       // Get dStake contracts from deployment
-      const dStakeToken = await ethers.getContractAt(
-        "dStakeToken",
-        (await deployments.get(config.dStakeTokenContractId)).address
+      const DStakeToken = await ethers.getContractAt(
+        "DStakeToken",
+        (await deployments.get(config.DStakeTokenContractId)).address
       );
 
       const collateralVault = await ethers.getContractAt(
-        "dStakeCollateralVault",
+        "DStakeCollateralVault",
         (await deployments.get(config.collateralVaultContractId)).address
       );
 
       const router = await ethers.getContractAt(
-        "dStakeRouter",
+        "DStakeRouter",
         (await deployments.get(config.routerContractId)).address
       );
 
@@ -140,7 +140,7 @@ export const createDStakeFixture = (config: DStakeFixtureConfig) => {
       adapterAddress = await collateralVault.adapterForAsset(vaultAssetAddress);
       if (adapterAddress !== ethers.ZeroAddress) {
         adapter = await ethers.getContractAt(
-          "IdStableConversionAdapter",
+          "IDStableConversionAdapter",
           adapterAddress
         );
       } else {
@@ -150,7 +150,7 @@ export const createDStakeFixture = (config: DStakeFixtureConfig) => {
       // Return the deployed contracts and information
       return {
         config,
-        dStakeToken,
+        DStakeToken,
         collateralVault,
         router,
         dStableToken: dStableToken as unknown as ERC20,

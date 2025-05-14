@@ -4,7 +4,7 @@ import {
   DStakeCollateralVault,
   DStakeToken,
   DStakeRouter,
-  IdStableConversionAdapter,
+  IDStableConversionAdapter,
   ERC20,
   IERC20,
 } from "../../typechain-types";
@@ -31,7 +31,7 @@ async function fundVaultWithTokens(
     .transfer(collateralVaultAddress, amount);
 }
 
-describe("dStakeCollateralVault", () => {
+describe("DStakeCollateralVault", () => {
   let deployer: SignerWithAddress;
   let stable: ERC20StablecoinUpgradeable;
   let user1: SignerWithAddress;
@@ -39,7 +39,7 @@ describe("dStakeCollateralVault", () => {
   let routerRole: string;
 
   // Fixture types
-  let dStakeToken: DStakeToken;
+  let DStakeToken: DStakeToken;
   let collateralVault: DStakeCollateralVault;
   let router: DStakeRouter;
   let dStableToken: ERC20;
@@ -47,10 +47,10 @@ describe("dStakeCollateralVault", () => {
   let vaultAssetToken: IERC20;
   let vaultAssetAddress: string;
   let vaultAssetDecimals: bigint;
-  let adapter: IdStableConversionAdapter | null; // Adapter can be null
+  let adapter: IDStableConversionAdapter | null; // Adapter can be null
   let adapterAddress: string;
 
-  let dStakeTokenAddress: string;
+  let DStakeTokenAddress: string;
   let dStableTokenAddress: string;
   let collateralVaultAddress: string;
   let routerAddress: string;
@@ -67,7 +67,7 @@ describe("dStakeCollateralVault", () => {
 
     const fixture = await createDStakeFixture(SDUSD_CONFIG)();
 
-    dStakeToken = fixture.dStakeToken as unknown as DStakeToken;
+    DStakeToken = fixture.DStakeToken as unknown as DStakeToken;
     collateralVault =
       fixture.collateralVault as unknown as DStakeCollateralVault;
     router = fixture.router as unknown as DStakeRouter;
@@ -75,10 +75,10 @@ describe("dStakeCollateralVault", () => {
     dStableDecimals = await dStableToken.decimals();
     vaultAssetToken = fixture.vaultAssetToken;
     vaultAssetAddress = fixture.vaultAssetAddress;
-    adapter = fixture.adapter as unknown as IdStableConversionAdapter | null;
+    adapter = fixture.adapter as unknown as IDStableConversionAdapter | null;
     adapterAddress = fixture.adapterAddress;
 
-    dStakeTokenAddress = await dStakeToken.getAddress();
+    DStakeTokenAddress = await DStakeToken.getAddress();
     dStableTokenAddress = await dStableToken.getAddress();
     // Get the native stablecoin contract to grant mint role
     stable = (await ethers.getContractAt(
@@ -116,7 +116,7 @@ describe("dStakeCollateralVault", () => {
     }
     routerSigner = deployer;
 
-    expect(await collateralVault.dStakeToken()).to.equal(dStakeTokenAddress);
+    expect(await collateralVault.dStakeToken()).to.equal(DStakeTokenAddress);
     expect(await collateralVault.dStable()).to.equal(dStableTokenAddress);
     expect(await collateralVault.hasRole(adminRole, deployer.address)).to.be
       .true;
@@ -136,8 +136,8 @@ describe("dStakeCollateralVault", () => {
       expect(collateralVaultAddress).to.not.equal(ZeroAddress);
     });
 
-    it("Should have set immutable state correctly (dStakeToken, dStable)", async function () {
-      expect(await collateralVault.dStakeToken()).to.equal(dStakeTokenAddress);
+    it("Should have set immutable state correctly (DStakeToken, dStable)", async function () {
+      expect(await collateralVault.dStakeToken()).to.equal(DStakeTokenAddress);
       expect(await collateralVault.dStable()).to.equal(dStableTokenAddress);
     });
 
@@ -363,14 +363,15 @@ describe("dStakeCollateralVault", () => {
       const dStableAmountToDeposit = parseUnits("100", dStableDecimals);
       // Mint dStable for deployer
       await stable.mint(deployer.address, dStableAmountToDeposit);
-      // Approve dStakeToken to spend dStable for deposit
+      // Approve DStakeToken to spend dStable for deposit
       await dStableToken
         .connect(deployer)
-        .approve(dStakeTokenAddress, dStableAmountToDeposit);
-      // Deposit via dStakeToken to fund collateral vault
-      await dStakeToken
-        .connect(deployer)
-        .deposit(dStableAmountToDeposit, deployer.address);
+        .approve(DStakeTokenAddress, dStableAmountToDeposit);
+      // Deposit via DStakeToken to fund collateral vault
+      await DStakeToken.connect(deployer).deposit(
+        dStableAmountToDeposit,
+        deployer.address
+      );
       const amount = await vaultAssetToken.balanceOf(collateralVaultAddress);
 
       expect(amount).to.be.gt(0);
@@ -449,14 +450,15 @@ describe("dStakeCollateralVault", () => {
         const dStableDepositAmount = parseUnits("100", dStableDecimals);
         // Mint dStable for deployer
         await stable.mint(deployer.address, dStableDepositAmount);
-        // Approve dStakeToken to spend dStable for deposit
+        // Approve DStakeToken to spend dStable for deposit
         await dStableToken
           .connect(deployer)
-          .approve(dStakeTokenAddress, dStableDepositAmount);
-        // Deposit via dStakeToken to fund collateral vault
-        await dStakeToken
-          .connect(deployer)
-          .deposit(dStableDepositAmount, deployer.address);
+          .approve(DStakeTokenAddress, dStableDepositAmount);
+        // Deposit via DStakeToken to fund collateral vault
+        await DStakeToken.connect(deployer).deposit(
+          dStableDepositAmount,
+          deployer.address
+        );
       }
       if (
         (await vaultAssetToken.balanceOf(collateralVaultAddress)) < amountToSend
@@ -587,14 +589,15 @@ describe("dStakeCollateralVault", () => {
       const dStableDepositAmount = parseUnits("100", dStableDecimals);
       // Mint dStable for deployer
       await stable.mint(deployer.address, dStableDepositAmount);
-      // Approve dStakeToken to spend dStable for deposit
+      // Approve DStakeToken to spend dStable for deposit
       await dStableToken
         .connect(deployer)
-        .approve(dStakeTokenAddress, dStableDepositAmount);
-      // Deposit via dStakeToken to fund collateral vault
-      await dStakeToken
-        .connect(deployer)
-        .deposit(dStableDepositAmount, deployer.address);
+        .approve(DStakeTokenAddress, dStableDepositAmount);
+      // Deposit via DStakeToken to fund collateral vault
+      await DStakeToken.connect(deployer).deposit(
+        dStableDepositAmount,
+        deployer.address
+      );
 
       const vaultBalance = await vaultAssetToken.balanceOf(
         collateralVaultAddress
@@ -626,14 +629,15 @@ describe("dStakeCollateralVault", () => {
       const dStableDepositAmount = parseUnits("100", dStableDecimals);
       // Mint dStable for deployer
       await stable.mint(deployer.address, dStableDepositAmount);
-      // Approve dStakeToken to spend dStable for deposit
+      // Approve DStakeToken to spend dStable for deposit
       await dStableToken
         .connect(deployer)
-        .approve(dStakeTokenAddress, dStableDepositAmount);
-      // Deposit via dStakeToken to fund collateral vault
-      await dStakeToken
-        .connect(deployer)
-        .deposit(dStableDepositAmount, deployer.address);
+        .approve(DStakeTokenAddress, dStableDepositAmount);
+      // Deposit via DStakeToken to fund collateral vault
+      await DStakeToken.connect(deployer).deposit(
+        dStableDepositAmount,
+        deployer.address
+      );
 
       expect(await collateralVault.totalValueInDStable()).to.be.gt(0);
 

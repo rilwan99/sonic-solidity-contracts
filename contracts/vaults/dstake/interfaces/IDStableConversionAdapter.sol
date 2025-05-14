@@ -2,13 +2,13 @@
 pragma solidity ^0.8.20;
 
 /**
- * @title IdStableConversionAdapter Interface
+ * @title IDStableConversionAdapter Interface
  * @notice Interface for contracts that handle the conversion between the core dStable asset
  *         and a specific yield-bearing or convertible ERC20 token (`vault asset`), as well as
  *         valuing that `vault asset` in terms of the dStable asset.
  * @dev Implementations interact with specific protocols (lending pools, DEX LPs, wrappers, etc.).
  */
-interface IdStableConversionAdapter {
+interface IDStableConversionAdapter {
     /**
      * @notice Converts a specified amount of the dStable asset into the specific `vaultAsset`
      *         managed by this adapter.

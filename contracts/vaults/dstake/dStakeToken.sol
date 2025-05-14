@@ -5,15 +5,15 @@ import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.so
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IdStakeCollateralVault} from "./interfaces/IdStakeCollateralVault.sol";
-import {IdStakeRouter} from "./interfaces/IdStakeRouter.sol";
+import {IDStakeCollateralVault} from "./interfaces/IDStakeCollateralVault.sol";
+import {IDStakeRouter} from "./interfaces/IDStakeRouter.sol";
 import {BasisPointConstants} from "../../common/BasisPointConstants.sol";
 
 /**
- * @title dStakeToken
- * @dev ERC4626-compliant token representing shares in the dStakeCollateralVault.
+ * @title DStakeToken
+ * @dev ERC4626-compliant token representing shares in the DStakeCollateralVault.
  */
-contract dStakeToken is ERC4626, AccessControl {
+contract DStakeToken is ERC4626, AccessControl {
     // --- Roles ---
     bytes32 public constant FEE_MANAGER_ROLE = keccak256("FEE_MANAGER_ROLE");
 
@@ -22,8 +22,8 @@ contract dStakeToken is ERC4626, AccessControl {
     error InvalidFeeBps(uint256 feeBps, uint256 maxFeeBps);
 
     // --- State ---
-    IdStakeCollateralVault public collateralVault;
-    IdStakeRouter public router;
+    IDStakeCollateralVault public collateralVault;
+    IDStakeRouter public router;
 
     uint256 public withdrawalFeeBps;
     uint256 public constant maxWithdrawalFeeBps =
@@ -132,7 +132,7 @@ contract dStakeToken is ERC4626, AccessControl {
     // --- Governance Functions ---
 
     /**
-     * @notice Sets the address of the dStakeRouter contract.
+     * @notice Sets the address of the DStakeRouter contract.
      * @dev Only callable by DEFAULT_ADMIN_ROLE.
      * @param _router The address of the new router contract.
      */
@@ -140,12 +140,12 @@ contract dStakeToken is ERC4626, AccessControl {
         if (_router == address(0)) {
             revert ZeroAddress();
         }
-        router = IdStakeRouter(_router);
+        router = IDStakeRouter(_router);
         emit RouterSet(_router);
     }
 
     /**
-     * @notice Sets the address of the dStakeCollateralVault contract.
+     * @notice Sets the address of the DStakeCollateralVault contract.
      * @dev Only callable by DEFAULT_ADMIN_ROLE.
      * @param _collateralVault The address of the new collateral vault contract.
      */
@@ -155,7 +155,7 @@ contract dStakeToken is ERC4626, AccessControl {
         if (_collateralVault == address(0)) {
             revert ZeroAddress();
         }
-        collateralVault = IdStakeCollateralVault(_collateralVault);
+        collateralVault = IDStakeCollateralVault(_collateralVault);
         emit CollateralVaultSet(_collateralVault);
     }
 

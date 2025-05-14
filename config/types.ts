@@ -149,13 +149,13 @@ export interface DStakeAdapterConfig {
 
 export interface DStakeInstanceConfig {
   readonly dStable: Address; // Address of the underlying dSTABLE (e.g., dUSD)
-  readonly name: string; // Name for dStakeToken (e.g., "Staked dUSD")
-  readonly symbol: string; // Symbol for dStakeToken (e.g., "sdUSD")
+  readonly name: string; // Name for DStakeToken (e.g., "Staked dUSD")
+  readonly symbol: string; // Symbol for DStakeToken (e.g., "sdUSD")
   readonly initialAdmin: Address;
   readonly initialFeeManager: Address;
   readonly initialWithdrawalFeeBps: number;
   readonly adapters: DStakeAdapterConfig[]; // List of supported adapters/vault assets
   readonly defaultDepositVaultAsset: Address; // Initial default vault asset for deposits
   readonly collateralExchangers: Address[]; // List of allowed exchanger addresses
-  readonly collateralVault?: Address; // The dStakeCollateralVault for this instance (needed for adapter deployment)
+  readonly collateralVault?: Address; // The DStakeCollateralVault for this instance (needed for adapter deployment)
 }
