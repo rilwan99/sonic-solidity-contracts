@@ -41,6 +41,7 @@ interface IOdosRepayAdapter is IBaseOdosAdapter {
      * @param debtAsset The address of the debt asset
      * @param repayAmount The amount of debt to repay
      * @param rateMode The rate mode of the debt (1 = stable, 2 = variable)
+     * @param withFlashloan Whether to use a flashloan to repay the debt
      * @param user The address of the user
      * @param minAmountToReceive The minimum amount to receive from the swap
      * @param swapData The encoded swap data for Odos
@@ -51,19 +52,19 @@ interface IOdosRepayAdapter is IBaseOdosAdapter {
         address debtAsset;
         uint256 repayAmount;
         uint256 rateMode;
+        bool withFlashloan;
         address user;
         uint256 minAmountToReceive;
         bytes swapData;
     }
 
     /**
-     * @dev Swaps collateral for another asset and uses that asset to repay a debt
-     * @param repayParams The parameters of the repay
-     * @param permitInput The parameters of the permit signature, to approve collateral aToken
-     * @return uint256 The amount repaid
+     * @notice Repays with collateral by swapping the collateral asset to debt asset
+     * @param repayParams struct describing the repay with collateral swap
+     * @param collateralATokenPermit optional permit for collateral aToken
      */
-    function swapAndRepay(
+    function repayWithCollateral(
         RepayParams memory repayParams,
-        PermitInput memory permitInput
-    ) external returns (uint256);
+        PermitInput memory collateralATokenPermit
+    ) external;
 }

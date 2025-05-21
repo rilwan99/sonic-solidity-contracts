@@ -69,6 +69,13 @@ interface IBaseOdosAdapter {
     error InitiatorMustBeThis(address initiator, address expectedInitiator);
 
     /**
+     * @dev Thrown when the debt repay amount is greater than the current debt
+     * @param repayAmount The amount requested to repay
+     * @param currentDebt The current debt amount
+     */
+    error InvalidDebtRepayAmount(uint256 repayAmount, uint256 currentDebt);
+
+    /**
      * @dev Struct to hold permit data
      * @param aToken The aToken contract with permit functionality
      * @param value The amount of tokens to permit

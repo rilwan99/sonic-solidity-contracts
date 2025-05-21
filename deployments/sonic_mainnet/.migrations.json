@@ -42,11 +42,11 @@
   "dLend:Incentives": 1744902741,
   "transfer_dstable_roles_to_multisig": 1744902851,
   "transfer_oracle_roles_to_multisig": 1744902867,
-  "dLend:OdosAdapters": 1744902885,
   "transfer_dlend_roles_to_multisig": 1744902902,
   "setup-wstkscusd-for-usd-redstone-composite-oracle-wrapper": 1746520589,
   "point-usd-oracle-aggregator-for-usd": 1746520591,
   "ChainlinkDecimalConverter_wstkscUSD": 1746529362,
   "add-wstkscUSD-reserve": 1746597765,
-  "transfer_oracle_wrapper_roles_to_multisig": 1747057583
+  "transfer_oracle_wrapper_roles_to_multisig": 1747057583,
+  "dLend:OdosAdapters": 1747641398
 }
