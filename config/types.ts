@@ -35,6 +35,8 @@ export interface MockConfig {
 
 export interface DStableConfig {
   readonly collaterals: Address[];
+  readonly initialFeeReceiver?: string;
+  readonly initialRedemptionFeeBps?: number;
 }
 
 export interface TokenAddresses {
