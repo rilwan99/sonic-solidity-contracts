@@ -194,6 +194,7 @@ export interface VestingConfig {
   readonly vestingPeriod: number; // Vesting period in seconds (e.g., 6 months)
   readonly maxTotalSupply: string; // Maximum total dSTAKE that can be deposited (as string for big numbers)
   readonly initialOwner: Address; // Initial owner of the vesting contract
+  readonly minDepositThreshold: string; // Minimum total dSTAKE that must be deposited per deposit
 }
 
 // --- dPool Types ---
