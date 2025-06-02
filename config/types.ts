@@ -20,6 +20,9 @@ export interface Config {
     [key: string]: DStakeInstanceConfig; // e.g., sdUSD, sdS
   };
   readonly vesting?: VestingConfig;
+  readonly dPool?: {
+    [key: string]: DPoolInstanceConfig; // e.g., dUSD-USDC_Curve
+  };
 }
 
 // Configuration for mocking infrastructure on local and test networks
@@ -30,6 +33,14 @@ export interface MockConfig {
       readonly address?: string;
       readonly decimals: number;
       readonly initialSupply: number;
+    };
+  };
+  readonly curvePools: {
+    [key: string]: {
+      readonly name: string;
+      readonly token0: string;
+      readonly token1: string;
+      readonly fee: number;
     };
   };
 }
@@ -183,4 +194,19 @@ export interface VestingConfig {
   readonly vestingPeriod: number; // Vesting period in seconds (e.g., 6 months)
   readonly maxTotalSupply: string; // Maximum total dSTAKE that can be deposited (as string for big numbers)
   readonly initialOwner: Address; // Initial owner of the vesting contract
+}
+
+// --- dPool Types ---
+
+export interface DPoolInstanceConfig {
+  readonly baseAsset: string; // Reference to token in config (e.g., "USDC", "dUSD")
+  readonly name: string; // Name for the vault (e.g., "dPOOL USDC/USDS")
+  readonly symbol: string; // Symbol for the vault (e.g., "dpUSDC_USDS")
+  readonly initialAdmin: Address;
+  readonly initialSlippageBps?: number; // Initial max slippage setting in BPS for periphery
+  readonly pool: string; // Pool deployment name (localhost) or pool address (testnet/mainnet)
+  // Examples by environment:
+  // - localhost: "USDC_USDS_CurvePool" (deployment name)
+  // - testnet: "0x742d35Cc6634C0532925a3b8D404fEdF6Caf9cd5" (actual pool address)
+  // - mainnet: "0xA5407eAE9Ba41422680e2e00537571bcC53efBfD" (actual pool address)
 }
