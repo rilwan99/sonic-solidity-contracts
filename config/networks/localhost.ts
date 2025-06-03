@@ -1,7 +1,7 @@
 import { ZeroAddress } from "ethers";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
-import { ONE_PERCENT_BPS } from "../../typescript/bps-constants";
+import { ONE_PERCENT_BPS } from "../../typescript/common/bps_constants";
 import {
   DS_TOKEN_ID,
   DUSD_TOKEN_ID,
@@ -34,7 +34,7 @@ import { Config } from "../types";
  * @returns The configuration for the network
  */
 export async function getConfig(
-  _hre: HardhatRuntimeEnvironment
+  _hre: HardhatRuntimeEnvironment,
 ): Promise<Config> {
   // Token info will only be populated after their deployment
   const dUSDDeployment = await _hre.deployments.getOrNull(DUSD_TOKEN_ID);
@@ -53,10 +53,10 @@ export async function getConfig(
 
   // Fetch deployed dLend StaticATokenLM wrappers
   const dLendATokenWrapperDUSDDeployment = await _hre.deployments.getOrNull(
-    "dLend_ATokenWrapper_dUSD"
+    "dLend_ATokenWrapper_dUSD",
   );
   const dLendATokenWrapperDSDeployment = await _hre.deployments.getOrNull(
-    "dLend_ATokenWrapper_dS"
+    "dLend_ATokenWrapper_dS",
   );
 
   // Fetch deployed dLend RewardsController
@@ -68,7 +68,7 @@ export async function getConfig(
 
   // Fetch deployed dSTAKE tokens for vesting
   const sdUSDDeployment = await _hre.deployments.getOrNull(
-    SDUSD_DSTAKE_TOKEN_ID
+    SDUSD_DSTAKE_TOKEN_ID,
   );
 
   // Get mock oracle deployments
@@ -76,17 +76,17 @@ export async function getConfig(
 
   // REFACTOR: Load addresses directly using getOrNull
   const mockOracleAddressesDeployment = await _hre.deployments.getOrNull(
-    "MockOracleNameToAddress"
+    "MockOracleNameToAddress",
   );
 
   if (mockOracleAddressesDeployment?.linkedData) {
     Object.assign(
       mockOracleNameToAddress,
-      mockOracleAddressesDeployment.linkedData
+      mockOracleAddressesDeployment.linkedData,
     );
   } else {
     console.warn(
-      "WARN: MockOracleNameToAddress deployment not found or has no linkedData. Oracle addresses might be incomplete."
+      "WARN: MockOracleNameToAddress deployment not found or has no linkedData. Oracle addresses might be incomplete.",
     );
   }
 
@@ -408,6 +408,50 @@ export async function getConfig(
     odos: {
       router: "", // Odos doesn't work on localhost
     },
+    dLoop: {
+      dUSDAddress: dUSDDeployment?.address || "",
+      coreVaults: {
+        "3x_sFRAX_dUSD": {
+          venue: "dlend",
+          name: "Leveraged sFRAX-dUSD Vault",
+          symbol: "FRAX-dUSD-3x",
+          underlyingAsset: sfrxUSDDeployment?.address || "",
+          dStable: dUSDDeployment?.address || "",
+          targetLeverageBps: 300 * ONE_PERCENT_BPS, // 300% leverage, meaning 3x leverage
+          lowerBoundTargetLeverageBps: 200 * ONE_PERCENT_BPS, // 200% leverage, meaning 2x leverage
+          upperBoundTargetLeverageBps: 400 * ONE_PERCENT_BPS, // 400% leverage, meaning 4x leverage
+          maxSubsidyBps: 2 * ONE_PERCENT_BPS, // 2% subsidy
+          extraParams: {
+            targetStaticATokenWrapper:
+              dLendATokenWrapperDUSDDeployment?.address,
+            treasury: user1,
+            maxTreasuryFeeBps: 1000,
+            initialTreasuryFeeBps: 500,
+            initialExchangeThreshold: "100",
+          },
+        },
+      },
+      depositors: {
+        odos: {
+          router: "", // Odos doesn't work on localhost
+        },
+      },
+      redeemers: {
+        odos: {
+          router: "", // Odos doesn't work on localhost
+        },
+      },
+      decreaseLeverage: {
+        odos: {
+          router: "", // Odos doesn't work on localhost
+        },
+      },
+      increaseLeverage: {
+        odos: {
+          router: "", // Odos doesn't work on localhost
+        },
+      },
+    },
     dStake: {
       sdUSD: {
         dStable: emptyStringIfUndefined(dUSDDeployment?.address),
@@ -419,25 +463,25 @@ export async function getConfig(
         adapters: [
           {
             vaultAsset: emptyStringIfUndefined(
-              dLendATokenWrapperDUSDDeployment?.address
+              dLendATokenWrapperDUSDDeployment?.address,
             ),
             adapterContract: "WrappedDLendConversionAdapter",
           },
         ],
         defaultDepositVaultAsset: emptyStringIfUndefined(
-          dLendATokenWrapperDUSDDeployment?.address
+          dLendATokenWrapperDUSDDeployment?.address,
         ),
         collateralVault: "DStakeCollateralVault_sdUSD",
         collateralExchangers: [user1],
         dLendRewardManager: {
           managedVaultAsset: emptyStringIfUndefined(
-            dLendATokenWrapperDUSDDeployment?.address
+            dLendATokenWrapperDUSDDeployment?.address,
           ), // This should be the deployed StaticATokenLM address for dUSD
           dLendAssetToClaimFor: emptyStringIfUndefined(
-            aTokenDUSDDeployment?.address
+            aTokenDUSDDeployment?.address,
           ), // Use the deployed dLEND-dUSD aToken address
           dLendRewardsController: emptyStringIfUndefined(
-            rewardsControllerDeployment?.address
+            rewardsControllerDeployment?.address,
           ), // This will be fetched after dLend incentives deployment
           treasury: user1, // Or a dedicated treasury address
           maxTreasuryFeeBps: 500, // Example: 5%
@@ -457,23 +501,23 @@ export async function getConfig(
         adapters: [
           {
             vaultAsset: emptyStringIfUndefined(
-              dLendATokenWrapperDSDeployment?.address
+              dLendATokenWrapperDSDeployment?.address,
             ),
             adapterContract: "WrappedDLendConversionAdapter",
           },
         ],
         defaultDepositVaultAsset: emptyStringIfUndefined(
-          dLendATokenWrapperDSDeployment?.address
+          dLendATokenWrapperDSDeployment?.address,
         ),
         collateralVault: "DStakeCollateralVault_sdS",
         collateralExchangers: [user1],
         dLendRewardManager: {
           managedVaultAsset: emptyStringIfUndefined(
-            dLendATokenWrapperDSDeployment?.address
+            dLendATokenWrapperDSDeployment?.address,
           ), // This should be the deployed StaticATokenLM address for dS
           dLendAssetToClaimFor: emptyStringIfUndefined(dSDeployment?.address), // Use the dS underlying asset address as a placeholder
           dLendRewardsController: emptyStringIfUndefined(
-            rewardsControllerDeployment?.address
+            rewardsControllerDeployment?.address,
           ), // This will be fetched after dLend incentives deployment
           treasury: user1, // Or a dedicated treasury address
           maxTreasuryFeeBps: 500, // Example: 5%
