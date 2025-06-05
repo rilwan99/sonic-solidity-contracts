@@ -95,6 +95,8 @@ export const DLOOP_PERIPHERY_ODOS_SWAP_LOGIC_ID = "OdosSwapLogic";
 // Chainlink Oracle Converters
 export const CHAINLINK_DECIMAL_CONVERTER_WSTKSCUSD_ID =
   "ChainlinkDecimalConverter_wstkscUSD";
+export const CHAINLINK_DECIMAL_CONVERTER_WSTKSCETH_ID =
+  "ChainlinkDecimalConverter_wstkscETH";
 
 // Wrapped dLEND ATokens
 export const DLEND_STATIC_A_TOKEN_FACTORY_ID = "dLend_StaticATokenFactory";
