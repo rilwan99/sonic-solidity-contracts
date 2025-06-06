@@ -16,6 +16,29 @@ export interface Config {
   readonly odos?: {
     readonly router: string;
   };
+  readonly dLoop: {
+    readonly dUSDAddress: string;
+    readonly coreVaults: { [vaultName: string]: DLoopCoreConfig };
+    readonly depositors: {
+      odos: DLoopDepositorOdosConfig;
+    };
+    readonly redeemers: {
+      odos: DLoopRedeemerOdosConfig;
+    };
+    readonly decreaseLeverage?: {
+      odos: DLoopDecreaseLeverageOdosConfig;
+    };
+    readonly increaseLeverage?: {
+      odos: DLoopIncreaseLeverageOdosConfig;
+    };
+  };
+  readonly dStake?: {
+    [key: string]: DStakeInstanceConfig; // e.g., sdUSD, sdS
+  };
+  readonly vesting?: VestingConfig;
+  readonly dPool?: {
+    [key: string]: DPoolInstanceConfig; // e.g., dUSD-USDC_Curve
+  };
 }
 
 // Configuration for mocking infrastructure on local and test networks
@@ -28,10 +51,49 @@ export interface MockConfig {
       readonly initialSupply: number;
     };
   };
+  readonly curvePools: {
+    [key: string]: {
+      readonly name: string;
+      readonly token0: string;
+      readonly token1: string;
+      readonly fee: number;
+    };
+  };
 }
 
 export interface DStableConfig {
   readonly collaterals: Address[];
+  readonly initialFeeReceiver?: string;
+  readonly initialRedemptionFeeBps?: number;
+}
+
+export interface DLoopCoreConfig {
+  readonly venue: "dlend";
+  readonly name: string;
+  readonly symbol: string;
+  readonly underlyingAsset: string;
+  readonly dStable: string;
+  readonly targetLeverageBps: number;
+  readonly lowerBoundTargetLeverageBps: number;
+  readonly upperBoundTargetLeverageBps: number;
+  readonly maxSubsidyBps: number;
+  readonly extraParams: { [key: string]: any }; // Add more params here
+}
+
+export interface DLoopDepositorOdosConfig {
+  readonly router: string;
+}
+
+export interface DLoopRedeemerOdosConfig {
+  readonly router: string;
+}
+
+export interface DLoopDecreaseLeverageOdosConfig {
+  readonly router: string;
+}
+
+export interface DLoopIncreaseLeverageOdosConfig {
+  readonly router: string;
 }
 
 export interface TokenAddresses {
@@ -135,4 +197,62 @@ export interface IReserveParams
   readonly reserveFactor: string;
   readonly supplyCap: string;
   readonly strategy: IInterestRateStrategyParams;
+}
+
+// --- dStake Types ---
+
+export interface DStakeAdapterConfig {
+  readonly vaultAsset: Address; // Address of the vault asset (e.g., wddUSD)
+  readonly adapterContract: string; // Contract name for deployment (e.g., dLendConversionAdapter)
+}
+
+export interface DLendRewardManagerConfig {
+  readonly managedVaultAsset: Address; // Address of the StaticATokenLM wrapper this manager handles (e.g. wddUSD)
+  readonly dLendAssetToClaimFor: Address; // Address of the underlying aToken in dLEND (e.g. aDUSD)
+  readonly dLendRewardsController: Address; // Address of the dLEND RewardsController
+  readonly treasury: Address; // Address for treasury fees
+  readonly maxTreasuryFeeBps: number;
+  readonly initialTreasuryFeeBps: number;
+  readonly initialExchangeThreshold: number; // Min dStable amount to trigger compounding
+  readonly initialAdmin?: Address; // Optional: admin for this DStakeRewardManagerDLend instance
+  readonly initialRewardsManager?: Address; // Optional: holder of REWARDS_MANAGER_ROLE for this instance
+}
+
+export interface DStakeInstanceConfig {
+  readonly dStable: Address; // Address of the underlying dSTABLE (e.g., dUSD)
+  readonly name: string; // Name for DStakeToken (e.g., "Staked dUSD")
+  readonly symbol: string; // Symbol for DStakeToken (e.g., "sdUSD")
+  readonly initialAdmin: Address;
+  readonly initialFeeManager: Address;
+  readonly initialWithdrawalFeeBps: number;
+  readonly adapters: DStakeAdapterConfig[]; // List of supported adapters/vault assets
+  readonly defaultDepositVaultAsset: Address; // Initial default vault asset for deposits
+  readonly collateralExchangers: Address[]; // List of allowed exchanger addresses
+  readonly collateralVault?: Address; // The DStakeCollateralVault for this instance (needed for adapter deployment)
+  readonly dLendRewardManager?: DLendRewardManagerConfig; // Added for dLend rewards
+}
+
+export interface VestingConfig {
+  readonly name: string; // Name of the NFT collection
+  readonly symbol: string; // Symbol of the NFT collection
+  readonly dstakeToken: Address; // Address of the dSTAKE token to vest
+  readonly vestingPeriod: number; // Vesting period in seconds (e.g., 6 months)
+  readonly maxTotalSupply: string; // Maximum total dSTAKE that can be deposited (as string for big numbers)
+  readonly initialOwner: Address; // Initial owner of the vesting contract
+  readonly minDepositThreshold: string; // Minimum total dSTAKE that must be deposited per deposit
+}
+
+// --- dPool Types ---
+
+export interface DPoolInstanceConfig {
+  readonly baseAsset: string; // Reference to token in config (e.g., "USDC", "dUSD")
+  readonly name: string; // Name for the vault (e.g., "dPOOL USDC/USDS")
+  readonly symbol: string; // Symbol for the vault (e.g., "dpUSDC_USDS")
+  readonly initialAdmin: Address;
+  readonly initialSlippageBps?: number; // Initial max slippage setting in BPS for periphery
+  readonly pool: string; // Pool deployment name (localhost) or pool address (testnet/mainnet)
+  // Examples by environment:
+  // - localhost: "USDC_USDS_CurvePool" (deployment name)
+  // - testnet: "0x742d35Cc6634C0532925a3b8D404fEdF6Caf9cd5" (actual pool address)
+  // - mainnet: "0xA5407eAE9Ba41422680e2e00537571bcC53efBfD" (actual pool address)
 }

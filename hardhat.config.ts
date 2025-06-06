@@ -8,10 +8,7 @@ import "dotenv/config";
 
 import { HardhatUserConfig } from "hardhat/config";
 
-import {
-  getEnvPrivateKeys,
-  getStandardNamedAccounts,
-} from "./typescript/hardhat/named-accounts";
+import { getEnvPrivateKeys } from "./typescript/hardhat/named-accounts";
 
 /* eslint-disable camelcase -- Network names follow specific naming conventions that require snake_case */
 const config: HardhatUserConfig = {
@@ -22,9 +19,9 @@ const config: HardhatUserConfig = {
         enabled: true,
         runs: 200,
       },
+      viaIR: true,
     },
   },
-
   networks: {
     hardhat: {
       deploy: ["deploy-mocks", "deploy"],
@@ -49,7 +46,14 @@ const config: HardhatUserConfig = {
       accounts: getEnvPrivateKeys("sonic_mainnet"),
     },
   },
-  namedAccounts: getStandardNamedAccounts(),
+  namedAccounts: {
+    deployer: 0,
+    user1: 1,
+    user2: 2,
+    user3: 3,
+    user4: 4,
+    user5: 5,
+  },
   paths: {
     sources: "./contracts",
     tests: "./test",

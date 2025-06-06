@@ -1,7 +1,13 @@
 import { ZeroAddress } from "ethers";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 
-import { DS_TOKEN_ID, DUSD_TOKEN_ID } from "../../typescript/deploy-ids";
+import { ONE_PERCENT_BPS } from "../../typescript/common/bps_constants";
+import {
+  DS_TOKEN_ID,
+  DUSD_TOKEN_ID,
+  INCENTIVES_PROXY_ID,
+  SDUSD_DSTAKE_TOKEN_ID,
+} from "../../typescript/deploy-ids";
 import {
   ORACLE_AGGREGATOR_BASE_CURRENCY_UNIT,
   ORACLE_AGGREGATOR_PRICE_DECIMALS,
@@ -45,6 +51,26 @@ export async function getConfig(
   const scUSDDeployment = await _hre.deployments.getOrNull("scUSD");
   const wstkscUSDDeployment = await _hre.deployments.getOrNull("wstkscUSD");
 
+  // Fetch deployed dLend StaticATokenLM wrappers
+  const dLendATokenWrapperDUSDDeployment = await _hre.deployments.getOrNull(
+    "dLend_ATokenWrapper_dUSD",
+  );
+  const dLendATokenWrapperDSDeployment = await _hre.deployments.getOrNull(
+    "dLend_ATokenWrapper_dS",
+  );
+
+  // Fetch deployed dLend RewardsController
+  const rewardsControllerDeployment =
+    await _hre.deployments.getOrNull(INCENTIVES_PROXY_ID);
+
+  // Fetch deployed dLend aTokens
+  const aTokenDUSDDeployment = await _hre.deployments.getOrNull("dLEND-dUSD");
+
+  // Fetch deployed dSTAKE tokens for vesting
+  const sdUSDDeployment = await _hre.deployments.getOrNull(
+    SDUSD_DSTAKE_TOKEN_ID,
+  );
+
   // Get mock oracle deployments
   const mockOracleNameToAddress: Record<string, string> = {};
 
@@ -65,7 +91,7 @@ export async function getConfig(
   }
 
   // Get the named accounts
-  const { user1 } = await _hre.getNamedAccounts();
+  const { deployer, user1 } = await _hre.getNamedAccounts();
 
   return {
     MOCK_ONLY: {
@@ -137,6 +163,22 @@ export async function getConfig(
           initialSupply: 1e6,
         },
       },
+      curvePools: {
+        // eslint-disable-next-line camelcase -- Ignore for config
+        USDC_USDS_CurvePool: {
+          name: "USDC/USDS Curve Pool",
+          token0: "USDC",
+          token1: "USDS",
+          fee: 4000000, // 0.04% fee
+        },
+        // eslint-disable-next-line camelcase -- Ignore for config
+        frxUSD_USDC_CurvePool: {
+          name: "frxUSD/USDC Curve Pool",
+          token0: "frxUSD",
+          token1: "USDC",
+          fee: 4000000, // 0.04% fee
+        },
+      },
     },
     tokenAddresses: {
       dUSD: emptyStringIfUndefined(dUSDDeployment?.address),
@@ -145,10 +187,13 @@ export async function getConfig(
       sfrxUSD: emptyStringIfUndefined(sfrxUSDDeployment?.address), // Used by dLEND
       stS: emptyStringIfUndefined(stSTokenDeployment?.address), // Used by dLEND
       wstkscUSD: emptyStringIfUndefined(wstkscUSDDeployment?.address), // Used by dLEND
+      USDC: emptyStringIfUndefined(USDCDeployment?.address), // Used by dPOOL
+      USDS: emptyStringIfUndefined(USDSDeployment?.address), // Used by dPOOL
+      frxUSD: emptyStringIfUndefined(frxUSDDeployment?.address), // Used by dPOOL
     },
     walletAddresses: {
-      governanceMultisig: user1,
-      incentivesVault: user1,
+      governanceMultisig: deployer,
+      incentivesVault: deployer,
     },
     dStables: {
       dUSD: {
@@ -159,6 +204,8 @@ export async function getConfig(
           frxUSDDeployment?.address || ZeroAddress,
           sfrxUSDDeployment?.address || ZeroAddress,
         ],
+        initialFeeReceiver: deployer,
+        initialRedemptionFeeBps: 1 * ONE_PERCENT_BPS,
       },
       dS: {
         collaterals: [
@@ -166,6 +213,8 @@ export async function getConfig(
           wOSTokenDeployment?.address || ZeroAddress,
           stSTokenDeployment?.address || ZeroAddress,
         ],
+        initialFeeReceiver: deployer,
+        initialRedemptionFeeBps: 1 * ONE_PERCENT_BPS,
       },
     },
     oracleAggregators: {
@@ -279,12 +328,12 @@ export async function getConfig(
               ? {
                   [wOSTokenDeployment.address]: {
                     feedAsset: wOSTokenDeployment.address,
-                    feed1: mockOracleNameToAddress["wOS_S"],
-                    feed2: mockOracleNameToAddress["wS_USD"],
+                    feed1: mockOracleNameToAddress["wOS_OS"],
+                    feed2: mockOracleNameToAddress["OS_S"],
                     lowerThresholdInBase1: 0n,
                     fixedPriceInBase1: 0n,
-                    lowerThresholdInBase2: 0n,
-                    fixedPriceInBase2: 0n,
+                    lowerThresholdInBase2: ORACLE_AGGREGATOR_BASE_CURRENCY_UNIT,
+                    fixedPriceInBase2: ORACLE_AGGREGATOR_BASE_CURRENCY_UNIT,
                   },
                 }
               : {}),
@@ -327,8 +376,8 @@ export async function getConfig(
                     feed2: mockOracleNameToAddress["OS_S"],
                     lowerThresholdInBase1: 0n,
                     fixedPriceInBase1: 0n,
-                    lowerThresholdInBase2: ORACLE_AGGREGATOR_BASE_CURRENCY_UNIT, // 1.0 in S terms
-                    fixedPriceInBase2: ORACLE_AGGREGATOR_BASE_CURRENCY_UNIT, // 1.0 in S terms
+                    lowerThresholdInBase2: ORACLE_AGGREGATOR_BASE_CURRENCY_UNIT,
+                    fixedPriceInBase2: ORACLE_AGGREGATOR_BASE_CURRENCY_UNIT,
                   },
                 }
               : {}),
@@ -358,6 +407,158 @@ export async function getConfig(
     },
     odos: {
       router: "", // Odos doesn't work on localhost
+    },
+    dLoop: {
+      dUSDAddress: dUSDDeployment?.address || "",
+      coreVaults: {
+        "3x_sFRAX_dUSD": {
+          venue: "dlend",
+          name: "Leveraged sFRAX-dUSD Vault",
+          symbol: "FRAX-dUSD-3x",
+          underlyingAsset: sfrxUSDDeployment?.address || "",
+          dStable: dUSDDeployment?.address || "",
+          targetLeverageBps: 300 * ONE_PERCENT_BPS, // 300% leverage, meaning 3x leverage
+          lowerBoundTargetLeverageBps: 200 * ONE_PERCENT_BPS, // 200% leverage, meaning 2x leverage
+          upperBoundTargetLeverageBps: 400 * ONE_PERCENT_BPS, // 400% leverage, meaning 4x leverage
+          maxSubsidyBps: 2 * ONE_PERCENT_BPS, // 2% subsidy
+          extraParams: {
+            targetStaticATokenWrapper:
+              dLendATokenWrapperDUSDDeployment?.address,
+            treasury: user1,
+            maxTreasuryFeeBps: 1000,
+            initialTreasuryFeeBps: 500,
+            initialExchangeThreshold: "100",
+          },
+        },
+      },
+      depositors: {
+        odos: {
+          router: "", // Odos doesn't work on localhost
+        },
+      },
+      redeemers: {
+        odos: {
+          router: "", // Odos doesn't work on localhost
+        },
+      },
+      decreaseLeverage: {
+        odos: {
+          router: "", // Odos doesn't work on localhost
+        },
+      },
+      increaseLeverage: {
+        odos: {
+          router: "", // Odos doesn't work on localhost
+        },
+      },
+    },
+    dStake: {
+      sdUSD: {
+        dStable: emptyStringIfUndefined(dUSDDeployment?.address),
+        name: "Staked dUSD",
+        symbol: "sdUSD",
+        initialAdmin: user1,
+        initialFeeManager: user1,
+        initialWithdrawalFeeBps: 10,
+        adapters: [
+          {
+            vaultAsset: emptyStringIfUndefined(
+              dLendATokenWrapperDUSDDeployment?.address,
+            ),
+            adapterContract: "WrappedDLendConversionAdapter",
+          },
+        ],
+        defaultDepositVaultAsset: emptyStringIfUndefined(
+          dLendATokenWrapperDUSDDeployment?.address,
+        ),
+        collateralVault: "DStakeCollateralVault_sdUSD",
+        collateralExchangers: [user1],
+        dLendRewardManager: {
+          managedVaultAsset: emptyStringIfUndefined(
+            dLendATokenWrapperDUSDDeployment?.address,
+          ), // This should be the deployed StaticATokenLM address for dUSD
+          dLendAssetToClaimFor: emptyStringIfUndefined(
+            aTokenDUSDDeployment?.address,
+          ), // Use the deployed dLEND-dUSD aToken address
+          dLendRewardsController: emptyStringIfUndefined(
+            rewardsControllerDeployment?.address,
+          ), // This will be fetched after dLend incentives deployment
+          treasury: user1, // Or a dedicated treasury address
+          maxTreasuryFeeBps: 500, // Example: 5%
+          initialTreasuryFeeBps: 100, // Example: 1%
+          initialExchangeThreshold: 1e6, // Example: 1 dStable (adjust based on dStable decimals)
+          initialAdmin: user1, // Optional: specific admin for this reward manager
+          initialRewardsManager: user1, // Optional: specific rewards manager role holder
+        },
+      },
+      sdS: {
+        dStable: emptyStringIfUndefined(dSDeployment?.address),
+        name: "Staked dS",
+        symbol: "sdS",
+        initialAdmin: user1,
+        initialFeeManager: user1,
+        initialWithdrawalFeeBps: 10,
+        adapters: [
+          {
+            vaultAsset: emptyStringIfUndefined(
+              dLendATokenWrapperDSDeployment?.address,
+            ),
+            adapterContract: "WrappedDLendConversionAdapter",
+          },
+        ],
+        defaultDepositVaultAsset: emptyStringIfUndefined(
+          dLendATokenWrapperDSDeployment?.address,
+        ),
+        collateralVault: "DStakeCollateralVault_sdS",
+        collateralExchangers: [user1],
+        dLendRewardManager: {
+          managedVaultAsset: emptyStringIfUndefined(
+            dLendATokenWrapperDSDeployment?.address,
+          ), // This should be the deployed StaticATokenLM address for dS
+          dLendAssetToClaimFor: emptyStringIfUndefined(dSDeployment?.address), // Use the dS underlying asset address as a placeholder
+          dLendRewardsController: emptyStringIfUndefined(
+            rewardsControllerDeployment?.address,
+          ), // This will be fetched after dLend incentives deployment
+          treasury: user1, // Or a dedicated treasury address
+          maxTreasuryFeeBps: 500, // Example: 5%
+          initialTreasuryFeeBps: 100, // Example: 1%
+          initialExchangeThreshold: 1e6, // Example: 1 dStable (adjust based on dStable decimals)
+          initialAdmin: user1, // Optional: specific admin for this reward manager
+          initialRewardsManager: user1, // Optional: specific rewards manager role holder
+        },
+      },
+    },
+    vesting: {
+      name: "dBOOST sdUSD Season 1",
+      symbol: "sdUSD-S1",
+      dstakeToken: emptyStringIfUndefined(sdUSDDeployment?.address), // Use sdUSD as the vesting token
+      vestingPeriod: 180 * 24 * 60 * 60, // 6 months in seconds
+      maxTotalSupply: _hre.ethers.parseUnits("1000000", 18).toString(), // 1 million tokens
+      initialOwner: user1,
+      minDepositThreshold: _hre.ethers.parseUnits("100000", 18).toString(), // 100,000 tokens
+    },
+    dPool: {
+      // Note: In localhost, pool should be the deployment name
+      // In testnet/mainnet, pool should be the actual pool address
+      // Example for mainnet: pool: "0xA5407eAE9Ba41422680e2e00537571bcC53efBfD"
+      // eslint-disable-next-line camelcase -- Ignore for config
+      USDC_USDS_Curve: {
+        baseAsset: "USDC", // Base asset for valuation (smart contract will auto-determine index)
+        name: "dPOOL USDC/USDS",
+        symbol: "USDC-USDS_Curve",
+        initialAdmin: user1,
+        initialSlippageBps: 100, // 1% max slippage for periphery
+        pool: "USDC_USDS_CurvePool", // Deployment name (localhost) or address (testnet/mainnet)
+      },
+      // eslint-disable-next-line camelcase -- Ignore for config
+      frxUSD_USDC_Curve: {
+        baseAsset: "frxUSD", // Base asset for valuation (smart contract will auto-determine index)
+        name: "dPOOL frxUSD/USDC",
+        symbol: "frxUSD-USDC_Curve",
+        initialAdmin: user1,
+        initialSlippageBps: 100, // 1% max slippage for periphery
+        pool: "frxUSD_USDC_CurvePool", // Deployment name (localhost) or address (testnet/mainnet)
+      },
     },
   };
 }
