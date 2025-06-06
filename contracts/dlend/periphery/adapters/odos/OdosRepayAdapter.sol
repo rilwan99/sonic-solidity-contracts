@@ -209,14 +209,6 @@ contract OdosRepayAdapter is
             repayParams.swapData
         );
 
-        // Check if the swap provides the necessary repay amount
-        if (amountSold < repayParams.repayAmount) {
-            revert InsufficientAmountToRepay(
-                amountSold,
-                repayParams.repayAmount
-            );
-        }
-
         // repay the debt with the bought asset (debtRepayAsset) from the swap
         _conditionalRenewAllowance(repayParams.debtAsset, amountSold);
         POOL.repay(
