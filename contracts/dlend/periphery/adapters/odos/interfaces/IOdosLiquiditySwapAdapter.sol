@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+j// SPDX-License-Identifier: MIT
 /* ———————————————————————————————————————————————————————————————————————————————— *
  *    _____     ______   ______     __     __   __     __     ______   __  __       *
  *   /\  __-.  /\__  _\ /\  == \   /\ \   /\ "-.\ \   /\ \   /\__  _\ /\ \_\ \      *
@@ -30,6 +30,7 @@ interface IOdosLiquiditySwapAdapter is IBaseOdosAdapter {
         uint256 collateralAmountToSwap; // the amount of asset to swap from
         address newCollateralAsset; // the asset to swap collateral to
         uint256 newCollateralAmount; // the minimum amount of new collateral asset to receive
+        uint256 allBalanceOffset; // the offset in buy calldata in case of swapping all collateral, otherwise 0
         address user; // the address of user
         bool withFlashLoan; // true if flashloan is needed to swap collateral, otherwise false
         bytes swapData; // the encoded swap data for Odos

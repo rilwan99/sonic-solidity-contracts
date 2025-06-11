@@ -30,6 +30,7 @@ interface IOdosWithdrawSwapAdapter is IBaseOdosAdapter {
         uint256 oldAssetAmount; // the amount to withdraw
         address newAsset; // the asset to swap to
         uint256 minAmountToReceive; // the minimum amount of new asset to receive
+        uint256 allBalanceOffset; // the offset in buy calldata in case of withdrawing all collateral, otherwise 0
         address user; // the address of user
         bytes swapData; // the swap data for Odos
     }

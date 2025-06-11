@@ -81,6 +81,7 @@ interface IOdosDebtSwapAdapter is IBaseOdosAdapter {
         uint256 debtRateMode;
         address nestedFlashloanDebtAsset;
         uint256 nestedFlashloanDebtAmount;
+        uint256 allBalanceOffset;
         address user;
         bytes swapData;
     }

@@ -53,6 +53,7 @@ interface IOdosRepayAdapter is IBaseOdosAdapter {
         uint256 repayAmount;
         uint256 rateMode;
         bool withFlashloan;
+        uint256 allBalanceOffset;
         address user;
         uint256 minAmountToReceive;
         bytes swapData;

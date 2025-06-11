@@ -15,6 +15,8 @@ library OdosSwapUtils {
     error SwapFailed();
     /// @notice Custom error when actual output amount is less than expected
     error InsufficientOutput(uint256 expected, uint256 actual);
+    /// @notice Custom error when contract balance is insufficient for the swap
+    error InsufficientBalance(uint256 required, uint256 available);
 
     /**
      * @notice Performs an swap operation using Odos router with swap data
@@ -31,9 +33,21 @@ library OdosSwapUtils {
         uint256 exactOut,
         bytes memory swapData
     ) internal returns (uint256) {
-        ERC20(inputToken).approve(address(router), maxIn);
+        // Check actual balance to ensure we have enough tokens
+        uint256 actualBalance = ERC20(inputToken).balanceOf(address(this));
+        
+        // Ensure we have at least the required maxIn amount
+        if (actualBalance < maxIn) {
+            revert InsufficientBalance(maxIn, actualBalance);
+        }
+        
+        ERC20(inputToken).approve(address(router), actualBalance);
 
         (bool success, bytes memory result) = address(router).call(swapData);
+        
+        // Always reset approval to 0 for security, regardless of success/failure
+        ERC20(inputToken).approve(address(router), 0);
+        
         if (!success) {
             // Decode the revert reason if present
             if (result.length > 0) {
