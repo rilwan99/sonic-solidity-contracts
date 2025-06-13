@@ -19,6 +19,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "contracts/common/IAaveOracle.sol";
 import "contracts/common/IMintableERC20.sol";
@@ -103,6 +104,11 @@ contract Issuer is AccessControl, OracleAware {
         address collateralAsset,
         uint256 minDStable
     ) external {
+        // Ensure the collateral asset is supported by the vault before any further processing
+        if (!collateralVault.isCollateralSupported(collateralAsset)) {
+            revert CollateralVault.UnsupportedCollateral(collateralAsset);
+        }
+
         uint8 collateralDecimals = IERC20Metadata(collateralAsset).decimals();
         uint256 baseValue = (oracle.getAssetPrice(collateralAsset) *
             collateralAmount) / (10 ** collateralDecimals);

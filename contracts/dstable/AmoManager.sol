@@ -20,7 +20,28 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import "contracts/common/IMintableERC20.sol";
-import "./AmoVault.sol";
+import "./CollateralVault.sol";
+import "./OracleAware.sol";
+
+// Forward declaration interface for AmoVault instead of importing the full contract
+interface IAmoVault {
+    function totalValue() external view returns (uint256);
+
+    function totalDstableValue() external view returns (uint256);
+
+    function totalCollateralValue() external view returns (uint256);
+
+    function withdrawTo(
+        address recipient,
+        uint256 amount,
+        address asset
+    ) external;
+
+    function assetValueFromAmount(
+        uint256 amount,
+        address asset
+    ) external view returns (uint256);
+}
 
 /**
  * @title AmoManager
@@ -33,6 +54,10 @@ contract AmoManager is AccessControl, OracleAware {
     /* Core state */
 
     EnumerableMap.AddressToUintMap private _amoVaults;
+    // Separate map to track whether a vault is considered active. This decouples
+    // allocation bookkeeping (which may change when moving collateral) from the
+    // governance‐controlled active status of a vault.
+    mapping(address => bool) private _isAmoActive;
     uint256 public totalAllocated;
     IMintableERC20 public dstable;
     CollateralVault public collateralHolderVault;
@@ -187,7 +212,7 @@ contract AmoManager is AccessControl, OracleAware {
      * @return True if the AMO vault is active, false otherwise.
      */
     function isAmoActive(address amoVault) public view returns (bool) {
-        return _amoVaults.contains(amoVault);
+        return _isAmoActive[amoVault];
     }
 
     /**
@@ -217,10 +242,13 @@ contract AmoManager is AccessControl, OracleAware {
     function enableAmoVault(
         address amoVault
     ) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (_amoVaults.contains(amoVault)) {
+        if (_isAmoActive[amoVault]) {
             revert AmoVaultAlreadyEnabled(amoVault);
         }
-        _amoVaults.set(amoVault, 0);
+        // Ensure the vault is tracked in the allocation map (initial allocation may be zero)
+        (, uint256 currentAllocation) = _amoVaults.tryGet(amoVault);
+        _amoVaults.set(amoVault, currentAllocation);
+        _isAmoActive[amoVault] = true;
         emit AmoVaultSet(amoVault, true);
     }
 
@@ -231,10 +259,10 @@ contract AmoManager is AccessControl, OracleAware {
     function disableAmoVault(
         address amoVault
     ) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (!_amoVaults.contains(amoVault)) {
+        if (!_isAmoActive[amoVault]) {
             revert InactiveAmoVault(amoVault);
         }
-        _amoVaults.remove(amoVault);
+        _isAmoActive[amoVault] = false;
         emit AmoVaultSet(amoVault, false);
     }
 
@@ -249,7 +277,7 @@ contract AmoManager is AccessControl, OracleAware {
         for (uint256 i = 0; i < _amoVaults.length(); i++) {
             (address vaultAddress, ) = _amoVaults.at(i);
             if (isAmoActive(vaultAddress)) {
-                totalBaseValue += AmoVault(vaultAddress).totalCollateralValue();
+                totalBaseValue += IAmoVault(vaultAddress).totalCollateralValue();
             }
         }
         return totalBaseValue;
@@ -257,7 +285,6 @@ contract AmoManager is AccessControl, OracleAware {
 
     /**
      * @notice Transfers collateral from an AMO vault to the holding vault.
-     * CAUTION: Transferring from an inactive vault will re-activate the vault. This should be better designed in the next version.
      * @param amoVault The address of the AMO vault.
      * @param token The address of the collateral token to transfer.
      * @param amount The amount of collateral to transfer.
@@ -293,12 +320,12 @@ contract AmoManager is AccessControl, OracleAware {
             adjustmentAmount = currentAllocation;
         }
 
-        // CAUTION: This will re-activate the vault if it was inactive
+        // Bookkeeping: adjust the vault's allocation. This does NOT change the vault's active status.
         _amoVaults.set(amoVault, currentAllocation - adjustmentAmount);
         totalAllocated -= adjustmentAmount;
 
         // Transfer the collateral
-        AmoVault(amoVault).withdrawTo(
+        IAmoVault(amoVault).withdrawTo(
             address(collateralHolderVault),
             amount,
             token
@@ -319,7 +346,7 @@ contract AmoManager is AccessControl, OracleAware {
         if (token == address(dstable)) {
             revert CannotTransferDStable();
         }
-        if (!_amoVaults.contains(amoVault)) {
+        if (!_isAmoActive[amoVault]) {
             revert InactiveAmoVault(amoVault);
         }
 
@@ -352,7 +379,7 @@ contract AmoManager is AccessControl, OracleAware {
     function availableVaultProfitsInBase(
         address vaultAddress
     ) public view returns (int256) {
-        uint256 totalVaultValueInBase = AmoVault(vaultAddress).totalValue();
+        uint256 totalVaultValueInBase = IAmoVault(vaultAddress).totalValue();
         uint256 allocatedDstable = amoVaultAllocation(vaultAddress);
         uint256 allocatedValueInBase = dstableAmountToBaseValue(
             allocatedDstable
@@ -370,7 +397,7 @@ contract AmoManager is AccessControl, OracleAware {
      * @return takeProfitValueInBase The value of the withdrawn profits in base.
      */
     function withdrawProfits(
-        AmoVault amoVault,
+        IAmoVault amoVault,
         address recipient,
         address takeProfitToken,
         uint256 takeProfitAmount
