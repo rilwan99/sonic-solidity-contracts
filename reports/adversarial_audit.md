@@ -95,7 +95,72 @@ Overview: Holds collateral, price aware.
 
 ---
 
-# Summary table of issues
+## DLoop Module
+Threat model: Vault automates leveraged looping on external lending protocol. Adversary seeks to brick the vault, inflate subsidies, or arbitrage leverage boundaries to drain value.
+
+### DLoopCoreBase.sol (shared base)
+Overview: Provides wrappers that validate token balances with a hard-coded tolerance of 1 wei, then call virtual pool hooks.
+
+#### Finding 8 – 1 Wei `BALANCE_DIFF_TOLERANCE` Is Too Strict For Interest-Bearing or Fee Tokens
+*STRIDE*: Denial of Service  
+*Description*: The wrappers `_borrowFromPool`, `_repayDebtToPool`, `_withdrawFromPool`, `_supplyToPool` require the observed balance delta to equal `amount ± 1`. For interest-bearing tokens (e.g. aTokens that accrue on transfer) or fee-on-transfer tokens, the delta can easily deviate by >1 wei, triggering `Unexpected*` reverts and bricking leverage maintenance. A single dust-level interest accrual can permanently disable `increaseLeverage`/`decreaseLeverage` for every user.  
+*Exploit sketch*: Wait for interest to accrue so that `balanceOf(address(this))` grows by >1 wei between two `borrow` calls; subsequent `_borrowFromPool` will revert.  
+*Remediation*: Either remove strict equality and rely on protocol return values, or widen tolerance to a percentage of `amount` (e.g. 1 bps), or detect rebasing tokens and disable invariant.  
+*Severity*: Medium  
+*Complexity*: Moderate
+
+#### Finding 9 – Subsidy Front-Running via Self-Call
+*STRIDE*: Tampering  
+*Description*: `increaseLeverage` awards a caller-subsidy (not shown above) when they perform a leverage rebalance. An attacker can front-run the core transaction with a 0-impact call that moves leverage just inside the acceptable bounds, collect the subsidy, then revert the following user's call.  
+*Remediation*: Pay subsidy in pull-based fashion after verifying that leverage delta exceeded a minimum threshold, or implement a cooldown per address.  
+*Severity*: Low  
+*Complexity*: Low
+
+---
+
+## DStake Module
+Threat model: Attacker targets staking flows to siphon fees or manipulate withdrawal accounting.
+
+### DStakeToken.sol
+
+#### Finding 10 – Missing Re-entrancy Guard on `deposit()` and `withdraw()`
+*STRIDE*: Elevation of Privilege / Tampering  
+*Description*: `deposit()` pulls dStable from the user, then approves and calls `router.deposit()`. Because neither `deposit()` nor `withdraw()` is protected by `nonReentrant`, a malicious dStable token or a compromised adapter inside `router` can callback into DStakeToken before internal state (shares, fee accounting) is final. This can lead to double-minting of shares or fee evasion.  
+*Recommendation*: Add `nonReentrant` to the external ERC4626 entry points or adopt the Checks-Effects-Interactions pattern: update share balances BEFORE any external calls.  
+*Severity*: High  
+*Complexity*: Low
+
+### DStakeRewardManagerDLend.sol
+
+#### Finding 11 – Repeated `approve()` Without Reset Enables Adapter Drain
+*STRIDE*: Tampering  
+*Description*: `_processExchangeAssetDeposit()` calls `IERC20(exchangeAsset).approve(adapter, amount)` every time. If the previous allowance is non-zero many ERC-20 require it to be set to 0 first; but here the call silently fails for strict tokens (e.g. USDT) causing future deposits to revert, or leaves a large leftover allowance that a compromised adapter can sweep.  
+*Recommendation*: Use `safeIncreaseAllowance` with bounded limits or reset to 0 before setting; consider one-time permit style approvals.  
+*Severity*: Low  
+*Complexity*: Low
+
+---
+
+## Vesting Module
+Threat model: Users attempt to bypass caps or trade soul-bound NFTs.
+
+### ERC20VestingNFT.sol
+
+#### Finding 12 – Matured NFTs Retain `amount` After Withdrawal (Accounting Drift)
+*STRIDE*: Information Disclosure / Tampering  
+*Description*: `withdrawMatured()` marks the position as `matured` and transfers tokens, but does **not** zero out `amount`. Subsequent `totalDeposited` calculations exclude the withdrawn value, yet on-chain inspection of `vestingPositions[tokenId].amount` suggests otherwise. Indexers or off-chain tooling relying on this field may mis-report the circulating supply, and future contract upgrades reading `amount` could be tricked.  
+*Recommendation*: Set `vestingPositions[tokenId].amount = 0;` after successful withdrawal.  
+*Severity*: Informational  
+*Complexity*: Trivial
+
+---
+
+## Rewards Framework
+No additional critical issues beyond Finding 11 were discovered. Treasury-fee logic is capped and role-gated; non-reentrancy modifiers are in place.
+
+---
+
+# Summary table of issues (updated)
 | # | Title | Severity | Complexity |
 |---|-------|----------|------------|
 | 1 | `isERC20` reliability edge-cases | Low | Low |
@@ -104,5 +169,8 @@ Overview: Holds collateral, price aware.
 | 4 | Unlimited Flash-Mint external impact | Medium | Moderate |
 | 5 | `Issuer.issue()` re-entrancy to over-mint | High | Low |
 | 7 | Deflationary collateral mis-mint | Medium | Moderate |
-
-*(6 not scored per scope)*
+| 8 | DLoop 1-wei tolerance DoS | Medium | Moderate |
+| 9 | Subsidy front-running in DLoop | Low | Low |
+| 10 | Re-entrancy in DStakeToken deposit/withdraw | High | Low |
+| 11 | Adapter drain via repeated approve | Low | Low |
+| 12 | Vesting NFT amount not zeroed | Info | Trivial |
