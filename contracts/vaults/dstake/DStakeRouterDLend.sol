@@ -55,6 +55,9 @@ contract DStakeRouterDLend is IDStakeRouter, AccessControl {
     IDStakeCollateralVault public immutable collateralVault; // The DStakeCollateralVault this router serves
     address public immutable dStable; // The underlying dSTABLE asset address
 
+    // Governance-configurable risk parameters
+    uint256 public dustTolerance = 1; // 1 wei default tolerance
+
     mapping(address => address) public vaultAssetToAdapter; // vaultAsset => adapterAddress
     address public defaultDepositVaultAsset; // Default strategy for deposits
 
@@ -240,7 +243,11 @@ contract DStakeRouterDLend is IDStakeRouter, AccessControl {
 
             // Sanity: adapter must mint the same asset we just redeemed from
             if (mintedAsset != vaultAsset) {
-                revert AdapterAssetMismatch(adapterAddress, vaultAsset, mintedAsset);
+                revert AdapterAssetMismatch(
+                    adapterAddress,
+                    vaultAsset,
+                    mintedAsset
+                );
             }
 
             // Shares minted directly to collateralVault; surplus value now captured in accounting
@@ -318,6 +325,23 @@ contract DStakeRouterDLend is IDStakeRouter, AccessControl {
                 toVaultAsset,
                 resultingToVaultAssetAmount,
                 minToVaultAssetAmount
+            );
+        }
+
+        // --- Underlying value parity check ---
+        uint256 resultingDStableEquivalent = toAdapter
+            .previewConvertFromVaultAsset(resultingToVaultAssetAmount);
+
+        // Rely on Solidity 0.8 checked arithmetic: if `dustTolerance` is greater than
+        // `dStableAmountEquivalent`, the subtraction will underflow and the transaction
+        // will revert automatically. This saves gas compared to a ternary guard.
+        uint256 minRequiredDStable = dStableAmountEquivalent - dustTolerance;
+
+        if (resultingDStableEquivalent < minRequiredDStable) {
+            revert SlippageCheckFailed(
+                dStable,
+                resultingDStableEquivalent,
+                minRequiredDStable
             );
         }
 
@@ -535,4 +559,19 @@ contract DStakeRouterDLend is IDStakeRouter, AccessControl {
     event AdapterSet(address indexed vaultAsset, address adapterAddress);
     event AdapterRemoved(address indexed vaultAsset, address adapterAddress);
     event DefaultDepositVaultAssetSet(address indexed vaultAsset);
+    event DustToleranceSet(uint256 newDustTolerance);
+
+    // --- Governance setters ---
+
+    /**
+     * @notice Updates the `dustTolerance` used for value-parity checks.
+     * @dev Only callable by DEFAULT_ADMIN_ROLE.
+     * @param _dustTolerance The new tolerance value in wei of dStable.
+     */
+    function setDustTolerance(
+        uint256 _dustTolerance
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        dustTolerance = _dustTolerance;
+        emit DustToleranceSet(_dustTolerance);
+    }
 }
