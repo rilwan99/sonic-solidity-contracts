@@ -32,14 +32,14 @@ interface IDStakeCollateralVault {
     function router() external view returns (address);
 
     /**
-     * @notice Mapping from vault asset address to its corresponding IDStableConversionAdapter address.
-     */
-    function adapterForAsset(address) external view returns (address);
-
-    /**
-     * @notice List of supported vault assets.
+     * @notice Returns the vault asset at `index` from the internal supported list.
      */
     function supportedAssets(uint256 index) external view returns (address);
+
+    /**
+     * @notice Returns the entire list of supported vault assets. Convenient for UIs & off-chain analytics.
+     */
+    function getSupportedAssets() external view returns (address[] memory);
 
     /**
      * @notice Transfers `amount` of `vaultAsset` from this vault to the `recipient`.
@@ -62,20 +62,14 @@ interface IDStakeCollateralVault {
     function setRouter(address _newRouter) external;
 
     /**
-     * @notice Adds support for a new `vaultAsset` and its associated conversion adapter.
-     * @dev Only callable by an address with the DEFAULT_ADMIN_ROLE.
-     * @param vaultAsset The address of the new vault asset to support.
-     * @param adapterAddress The address of the IDStableConversionAdapter for this asset.
+     * @notice Adds a vault asset to the supported list. Callable only by the router.
      */
-    function addAdapter(address vaultAsset, address adapterAddress) external;
+    function addSupportedAsset(address vaultAsset) external;
 
     /**
-     * @notice Removes support for a `vaultAsset` and its adapter.
-     * @dev Only callable by an address with the DEFAULT_ADMIN_ROLE.
-     * @dev Requires the vault to hold zero balance of the asset being removed.
-     * @param vaultAsset The address of the vault asset to remove support for.
+     * @notice Removes a vault asset from the supported list. Callable only by the router.
      */
-    function removeAdapter(address vaultAsset) external;
+    function removeSupportedAsset(address vaultAsset) external;
 
     /**
      * @notice Emitted when the router address is set.
@@ -84,15 +78,12 @@ interface IDStakeCollateralVault {
     event RouterSet(address indexed router);
 
     /**
-     * @notice Emitted when support for a new adapter is added.
-     * @param vaultAsset The address of the supported vault asset.
-     * @param adapter The address of the adapter for the asset.
+     * @notice Emitted when a new vault asset is added to the supported list.
      */
-    event AdapterAdded(address indexed vaultAsset, address indexed adapter);
+    event SupportedAssetAdded(address indexed vaultAsset);
 
     /**
-     * @notice Emitted when support for an adapter is removed.
-     * @param vaultAsset The address of the vault asset whose adapter was removed.
+     * @notice Emitted when a vault asset is removed from the supported list.
      */
-    event AdapterRemoved(address indexed vaultAsset);
+    event SupportedAssetRemoved(address indexed vaultAsset);
 }

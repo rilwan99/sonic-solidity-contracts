@@ -6,6 +6,15 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IDStakeCollateralVault} from "./interfaces/IDStakeCollateralVault.sol";
 import {IDStableConversionAdapter} from "./interfaces/IDStableConversionAdapter.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+
+// ---------------------------------------------------------------------------
+// Internal interface to query the router's public mapping without importing the
+// full router contract (avoids circular dependencies).
+// ---------------------------------------------------------------------------
+interface IAdapterProvider {
+    function vaultAssetToAdapter(address) external view returns (address);
+}
 
 /**
  * @title DStakeCollateralVault
@@ -17,16 +26,15 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
  */
 contract DStakeCollateralVault is IDStakeCollateralVault, AccessControl {
     using SafeERC20 for IERC20;
+    using EnumerableSet for EnumerableSet.AddressSet;
 
     // --- Roles ---
     bytes32 public constant ROUTER_ROLE = keccak256("ROUTER_ROLE");
 
     // --- Errors ---
     error ZeroAddress();
-    error InvalidAdapter();
     error AssetNotSupported(address asset);
     error AssetAlreadySupported(address asset);
-    error AdapterMismatch(address expected, address actual);
     error NonZeroBalance(address asset);
 
     // --- State ---
@@ -35,8 +43,7 @@ contract DStakeCollateralVault is IDStakeCollateralVault, AccessControl {
 
     address public router; // The DStakeRouter allowed to interact
 
-    mapping(address => address) public adapterForAsset; // vaultAsset => adapter
-    address[] public supportedAssets; // List of supported vault assets
+    EnumerableSet.AddressSet private _supportedAssets; // Set of supported vault assets
 
     // --- Constructor ---
     constructor(address _dStakeVaultShare, address _dStableAsset) {
@@ -62,9 +69,11 @@ contract DStakeCollateralVault is IDStakeCollateralVault, AccessControl {
         returns (uint256 dStableValue)
     {
         uint256 totalValue = 0;
-        for (uint i = 0; i < supportedAssets.length; i++) {
-            address vaultAsset = supportedAssets[i];
-            address adapterAddress = adapterForAsset[vaultAsset];
+        uint256 len = _supportedAssets.length();
+        for (uint256 i = 0; i < len; i++) {
+            address vaultAsset = _supportedAssets.at(i);
+            address adapterAddress = IAdapterProvider(router)
+                .vaultAssetToAdapter(vaultAsset);
             if (adapterAddress != address(0)) {
                 uint256 balance = IERC20(vaultAsset).balanceOf(address(this));
                 if (balance > 0) {
@@ -79,110 +88,90 @@ contract DStakeCollateralVault is IDStakeCollateralVault, AccessControl {
     // --- External Functions (Router Interactions) ---
 
     /**
-     * @notice Transfers `amount` of `vaultAsset` from this vault to the `recipient`.
-     * @dev Only callable by the registered router.
-     * @param vaultAsset The address of the vault asset to send.
-     * @param amount The amount to send.
-     * @param recipient The address to receive the asset.
+     * @notice Transfers `amount` of `vaultAsset` from this vault to `recipient`.
+     * @dev Only callable by the registered router (ROUTER_ROLE).
      */
     function sendAsset(
         address vaultAsset,
         uint256 amount,
         address recipient
     ) external onlyRole(ROUTER_ROLE) {
-        if (adapterForAsset[vaultAsset] == address(0)) {
-            revert AssetNotSupported(vaultAsset);
-        }
+        if (!_isSupported(vaultAsset)) revert AssetNotSupported(vaultAsset);
         IERC20(vaultAsset).safeTransfer(recipient, amount);
     }
 
-    // --- External Functions (Governance) ---
-
     /**
-     * @notice Sets the address of the DStakeRouter contract.
-     * @dev Only callable by an address with the DEFAULT_ADMIN_ROLE.
-     * @param _newRouter The address of the new router contract.
+     * @notice Adds a new supported vault asset. Can only be invoked by the router.
      */
-    function setRouter(
-        address _newRouter
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (_newRouter == address(0)) {
-            revert ZeroAddress();
-        }
-
-        // Revoke the ROUTER_ROLE from the old router if it exists
-        if (router != address(0)) {
-            _revokeRole(ROUTER_ROLE, router);
-        }
-
-        // Grant the ROUTER_ROLE to the new router
-        _grantRole(ROUTER_ROLE, _newRouter);
-
-        router = _newRouter;
-        emit RouterSet(_newRouter);
-    }
-
-    /**
-     * @notice Adds support for a new `vaultAsset` and its associated conversion adapter.
-     * @dev Only callable by an address with the DEFAULT_ADMIN_ROLE.
-     * @param vaultAsset The address of the new vault asset to support.
-     * @param adapterAddress The address of the IDStableConversionAdapter for this asset.
-     */
-    function addAdapter(
-        address vaultAsset,
-        address adapterAddress
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (vaultAsset == address(0) || adapterAddress == address(0)) {
-            revert ZeroAddress();
-        }
-        if (adapterForAsset[vaultAsset] != address(0)) {
-            revert AssetAlreadySupported(vaultAsset);
-        }
-
-        // Validate adapter interface and asset match
-        try IDStableConversionAdapter(adapterAddress).vaultAsset() returns (
-            address reportedAsset
-        ) {
-            if (reportedAsset != vaultAsset) {
-                revert AdapterMismatch(vaultAsset, reportedAsset);
-            }
-        } catch {
-            revert InvalidAdapter();
-        }
-
-        adapterForAsset[vaultAsset] = adapterAddress;
-        supportedAssets.push(vaultAsset);
-        emit AdapterAdded(vaultAsset, adapterAddress);
-    }
-
-    /**
-     * @notice Removes support for a `vaultAsset` and its adapter.
-     * @dev Only callable by an address with the DEFAULT_ADMIN_ROLE.
-     * @dev Requires the vault to hold zero balance of the asset being removed.
-     * @param vaultAsset The address of the vault asset to remove support for.
-     */
-    function removeAdapter(
+    function addSupportedAsset(
         address vaultAsset
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (adapterForAsset[vaultAsset] == address(0)) {
-            revert AssetNotSupported(vaultAsset);
-        }
+    ) external onlyRole(ROUTER_ROLE) {
+        if (vaultAsset == address(0)) revert ZeroAddress();
+        if (_isSupported(vaultAsset)) revert AssetAlreadySupported(vaultAsset);
+
+        _supportedAssets.add(vaultAsset);
+        emit SupportedAssetAdded(vaultAsset);
+    }
+
+    /**
+     * @notice Removes a supported vault asset. Can only be invoked by the router.
+     *         Requires the vault to hold zero balance of the asset.
+     */
+    function removeSupportedAsset(
+        address vaultAsset
+    ) external onlyRole(ROUTER_ROLE) {
+        if (!_isSupported(vaultAsset)) revert AssetNotSupported(vaultAsset);
         if (IERC20(vaultAsset).balanceOf(address(this)) > 0) {
             revert NonZeroBalance(vaultAsset);
         }
 
-        delete adapterForAsset[vaultAsset];
+        _supportedAssets.remove(vaultAsset);
+        emit SupportedAssetRemoved(vaultAsset);
+    }
 
-        // Remove from supportedAssets array
-        for (uint i = 0; i < supportedAssets.length; i++) {
-            if (supportedAssets[i] == vaultAsset) {
-                supportedAssets[i] = supportedAssets[
-                    supportedAssets.length - 1
-                ];
-                supportedAssets.pop();
-                break;
-            }
+    // --- Governance Functions ---
+
+    /**
+     * @notice Sets the router address. Grants ROUTER_ROLE to new router and
+     *         revokes it from the previous router.
+     */
+    function setRouter(
+        address _newRouter
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_newRouter == address(0)) revert ZeroAddress();
+
+        // Revoke role from old router
+        if (router != address(0)) {
+            _revokeRole(ROUTER_ROLE, router);
         }
-        emit AdapterRemoved(vaultAsset);
+
+        _grantRole(ROUTER_ROLE, _newRouter);
+        router = _newRouter;
+        emit RouterSet(_newRouter);
+    }
+
+    // --- Internal Utilities ---
+
+    function _isSupported(address asset) private view returns (bool) {
+        return _supportedAssets.contains(asset);
+    }
+
+    // --- External Views ---
+
+    /**
+     * @notice Returns the vault asset at `index` from the internal supported set.
+     *         Kept for backwards-compatibility with the previous public array getter.
+     */
+    function supportedAssets(
+        uint256 index
+    ) external view override returns (address) {
+        return _supportedAssets.at(index);
+    }
+
+    /**
+     * @notice Returns the entire list of supported vault assets. Useful for UIs & off-chain tooling.
+     */
+    function getSupportedAssets() external view returns (address[] memory) {
+        return _supportedAssets.values();
     }
 }
