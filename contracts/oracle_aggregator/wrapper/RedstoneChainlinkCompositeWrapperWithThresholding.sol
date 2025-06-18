@@ -39,6 +39,7 @@ contract RedstoneChainlinkCompositeWrapperWithThresholding is
         ThresholdConfig secondaryThreshold; // Secondary price source threshold config
     }
 
+    // @pattern maps asset to composite feed
     mapping(address => CompositeFeed) public compositeFeeds;
 
     /* Events */
@@ -108,6 +109,7 @@ contract RedstoneChainlinkCompositeWrapperWithThresholding is
         emit CompositeFeedRemoved(asset);
     }
 
+    // Updares the threshold params for existing asset feed that has already been set
     function updateCompositeFeed(
         address asset,
         uint256 lowerThresholdInBase1,
@@ -116,11 +118,15 @@ contract RedstoneChainlinkCompositeWrapperWithThresholding is
         uint256 fixedPriceInBase2
     ) external onlyRole(ORACLE_MANAGER_ROLE) {
         CompositeFeed storage feed = compositeFeeds[asset];
+
+        // Revert if asset feed has not been set
         if (feed.feed1 == address(0) || feed.feed2 == address(0)) {
             revert FeedNotSet(asset);
         }
+
         feed.primaryThreshold.lowerThresholdInBase = lowerThresholdInBase1;
         feed.primaryThreshold.fixedPriceInBase = fixedPriceInBase1;
+
         feed.secondaryThreshold.lowerThresholdInBase = lowerThresholdInBase2;
         feed.secondaryThreshold.fixedPriceInBase = fixedPriceInBase2;
         emit CompositeFeedUpdated(
@@ -136,6 +142,8 @@ contract RedstoneChainlinkCompositeWrapperWithThresholding is
         address asset
     ) public view override returns (uint256 price, bool isAlive) {
         CompositeFeed memory feed = compositeFeeds[asset];
+        
+        // Revert if both feeds for the asset has not been set
         if (feed.feed1 == address(0) || feed.feed2 == address(0)) {
             revert FeedNotSet(asset);
         }
@@ -164,7 +172,10 @@ contract RedstoneChainlinkCompositeWrapperWithThresholding is
             );
         }
 
+        // @audit BUG Supposed to take the average price but incorrect multiplication performed
         price = (priceInBase1 * priceInBase2) / BASE_CURRENCY_UNIT;
+        
+        // @audit BUG heardcoded heartbeat
         isAlive =
             price > 0 &&
             updatedAt1 + CHAINLINK_HEARTBEAT + heartbeatStaleTimeLimit >

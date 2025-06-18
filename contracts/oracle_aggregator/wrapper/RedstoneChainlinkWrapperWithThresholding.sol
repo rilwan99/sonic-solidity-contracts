@@ -47,6 +47,7 @@ contract RedstoneChainlinkWrapperWithThresholding is
         (price, isAlive) = super.getPriceInfo(asset);
         if (isAlive) {
             ThresholdConfig memory config = assetThresholds[asset];
+            // @pattern only applies threshold if it is present
             if (config.lowerThresholdInBase > 0) {
                 price = _applyThreshold(price, config);
             }

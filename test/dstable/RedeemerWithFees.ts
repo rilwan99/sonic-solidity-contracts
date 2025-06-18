@@ -185,6 +185,7 @@ dstableConfigs.forEach((config) => {
         const collateralInfo = result.tokenInfo;
         collateralContracts.set(collateralSymbol, collateralContract);
         collateralInfos.set(collateralSymbol, collateralInfo);
+
         // Transfer and approve collateral for user1
         const depositAmount = hre.ethers.parseUnits(
           "1000",
@@ -195,14 +196,17 @@ dstableConfigs.forEach((config) => {
           "500",
           collateralInfo.decimals
         );
+
         await collateralContract
           .connect(await hre.ethers.getSigner(user1))
           .approve(await issuerContract.getAddress(), userAmount);
+
         // Issue dStable with 5% slippage protection
         const baseValue = await collateralVaultContract.assetValueFromAmount(
           userAmount,
           collateralInfo.address
         );
+
         const expectedDstable =
           await issuerContract.baseValueToDstableAmount(baseValue);
         const minDstable = (expectedDstable * 95n) / 100n;
@@ -279,15 +283,18 @@ dstableConfigs.forEach((config) => {
           const redeemerAddress = await redeemerWithFeesContract.getAddress();
           const feeReceiverAddress =
             await redeemerWithFeesContract.feeReceiver();
+
           // Redeem amount
           const redeemAmount = hre.ethers.parseUnits(
             "100",
             dstableInfo.decimals
           );
+
           // Approve redeemer
           await dstableContract
             .connect(userSigner)
             .approve(redeemerAddress, redeemAmount);
+
           // Calculate expected total collateral using contract logic
           const dstableValue =
             await redeemerWithFeesContract.dstableAmountToBaseValue(
@@ -303,9 +310,11 @@ dstableConfigs.forEach((config) => {
               await redeemerWithFeesContract.defaultRedemptionFeeBps()
             ).toString()
           );
+
           const expectedFee =
             (totalCollateral * defaultFeeBp) / BigInt(ONE_HUNDRED_PERCENT_BPS);
           const expectedNet = totalCollateral - expectedFee;
+
           // Balances before
           const userCollateralBefore =
             await collateralContract.balanceOf(user1);
@@ -319,6 +328,7 @@ dstableConfigs.forEach((config) => {
           const tx = await redeemerWithFeesContract
             .connect(userSigner)
             .redeem(redeemAmount, collateralInfo.address, 0);
+
           // Check event
           await expect(tx)
             .to.emit(redeemerWithFeesContract, "Redemption")
@@ -329,6 +339,7 @@ dstableConfigs.forEach((config) => {
               expectedNet,
               expectedFee
             );
+
           // Balances after
           const userCollateralAfter = await collateralContract.balanceOf(user1);
           const feeAfter =

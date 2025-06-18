@@ -105,6 +105,8 @@ abstract contract SwappableVault {
         uint256 inputTokenBalanceAfter = inputToken.balanceOf(address(this));
         uint256 outputTokenBalanceAfter = outputToken.balanceOf(address(this));
 
+        // @audit deeper: Look into what is happening below
+
         // Make sure the spent input token amount is not greater than the amount in maximum
         if (inputTokenBalanceAfter < inputTokenBalanceBefore) {
             uint256 spentInputTokenAmount = inputTokenBalanceBefore -

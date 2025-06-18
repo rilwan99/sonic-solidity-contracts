@@ -31,6 +31,7 @@ contract DStakeToken is
     IDStakeCollateralVault public collateralVault;
     IDStakeRouter public router;
 
+    // Immutable, stored in contract bytecode, 10_000 (1%)
     uint256 public constant MAX_WITHDRAWAL_FEE_BPS =
         BasisPointConstants.ONE_PERCENT_BPS;
 
@@ -41,12 +42,13 @@ contract DStakeToken is
     }
 
     function initialize(
-        IERC20 _dStable,
+        IERC20 _dStable, // underlying asset for the vault
         string memory _name,
         string memory _symbol,
         address _initialAdmin,
         address _initialFeeManager
     ) public initializer {
+        // Initialise parent contracts
         __ERC20_init(_name, _symbol);
         __ERC4626_init(_dStable);
         __AccessControl_init();
@@ -60,6 +62,7 @@ contract DStakeToken is
             revert ZeroAddress();
         }
 
+        // Grant role to governance specified addresses
         _grantRole(DEFAULT_ADMIN_ROLE, _initialAdmin);
         _grantRole(FEE_MANAGER_ROLE, _initialFeeManager);
     }
@@ -120,7 +123,7 @@ contract DStakeToken is
             revert ZeroAddress(); // Router or Vault not set
         }
 
-        // Pull assets from caller
+        // Pull dSTABLE assets from caller, mint them the ERC4626 shares
         super._deposit(caller, receiver, assets, shares); // This handles the ERC20 transfer
 
         // Approve router to spend the received assets (necessary because super._deposit transfers to this contract)

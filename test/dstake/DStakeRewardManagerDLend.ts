@@ -434,6 +434,40 @@ DSTAKE_CONFIGS.forEach((config: DStakeFixtureConfig) => {
         );
         expect(managerBalance).to.equal(0);
       });
+
+      // Tests for exchange asset deposit processing
+      it("Loss of funds for user when there is no reward tokens distributed", async function () {
+        // Fast forward to end of distribution so that 0 reward tokens are being returned
+        // Mine 3600 blocks with 3600 second intervals
+        await hre.network.provider.send("hardhat_mine", ["0xE10", "0xE10"]);
+
+        // Assume some other user has already called compoundRewards()
+        await rewardManager
+          .connect(callerSigner)
+          .compoundRewards(threshold, [rewardToken.target], user3Address);
+
+        const receiver = user4Address;
+
+        const beforeReceiverRaw = await rewardToken.balanceOf(receiver);
+        console.log("beforeReceiverRaw", beforeReceiverRaw);
+        console.log(
+          "User dStable balance before compoundRewards()",
+          await underlyingDStableToken.balanceOf(callerSigner)
+        );
+
+        // User calls compoundRewards()
+        await rewardManager
+          .connect(callerSigner)
+          .compoundRewards(threshold, [rewardToken.target], receiver);
+
+        const afterReceiverRaw = await rewardToken.balanceOf(receiver);
+        console.log("afterReceiverRaw", afterReceiverRaw);
+
+        console.log(
+          "User dStable balance After compoundRewards()",
+          await underlyingDStableToken.balanceOf(callerSigner)
+        );
+      });
     });
   });
 });

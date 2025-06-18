@@ -118,8 +118,8 @@ contract DStakeRewardManagerDLend is RewardClaimable {
      *      called from the base compoundRewards function).
      */
     function _claimRewards(
-        address[] calldata _tokensToClaim,
-        address _receiverForClaimedRawRewards
+        address[] calldata _tokensToClaim, // user input
+        address _receiverForClaimedRawRewards // set to address(this)
     ) internal virtual override returns (uint256[] memory rewardAmounts) {
         if (_tokensToClaim.length == 0) {
             revert ZeroRewardTokens();
@@ -129,6 +129,7 @@ contract DStakeRewardManagerDLend is RewardClaimable {
         }
 
         rewardAmounts = new uint256[](_tokensToClaim.length);
+
         address[] memory assetsToClaimForPayload = new address[](1);
         assetsToClaimForPayload[0] = dLendAssetToClaimFor;
 
@@ -147,7 +148,7 @@ contract DStakeRewardManagerDLend is RewardClaimable {
                 assetsToClaimForPayload, // Asset held by the wrapper in dLEND
                 type(uint256).max, // Claim all
                 targetStaticATokenWrapper, // User earning rewards is the wrapper
-                _receiverForClaimedRawRewards,
+                _receiverForClaimedRawRewards, // receiver of the rewards
                 rewardToken // The reward token to claim
             );
 
@@ -175,10 +176,12 @@ contract DStakeRewardManagerDLend is RewardClaimable {
         }
 
         address defaultVaultAsset = dStakeRouter.defaultDepositVaultAsset();
+        // verify defaultVaultAsset has been set
         if (defaultVaultAsset == address(0)) {
             revert DefaultDepositAssetNotSet();
         }
 
+        // Verify adapter has been set
         address adapterAddress = dStakeRouter.vaultAssetToAdapter(
             defaultVaultAsset
         );
@@ -220,9 +223,9 @@ contract DStakeRewardManagerDLend is RewardClaimable {
      * @notice Override to deposit exchangeAsset for wrapper positions before claiming rewards and distribute rewards
      */
     function compoundRewards(
-        uint256 amount,
-        address[] calldata rewardTokens,
-        address receiver
+        uint256 amount, // The amount to compound
+        address[] calldata rewardTokens, // the reward tokens to claim
+        address receiver // The address to receive the compounded rewards
     ) public override nonReentrant {
         // Validate input
         if (amount < exchangeThreshold) {
@@ -243,6 +246,8 @@ contract DStakeRewardManagerDLend is RewardClaimable {
         );
 
         // Deposit exchange asset to collateral vault to establish wrapper positions
+        // @pattern dUSD (exchange asset) -> adapter converts to wddUSD (Wrapped dLEND aToken)
+        // -> dStakeCollateralVault receives wddUSD (this is a yield bearing token)
         _processExchangeAssetDeposit(amount);
 
         // Emit compound event
@@ -254,6 +259,7 @@ contract DStakeRewardManagerDLend is RewardClaimable {
             address(this)
         );
 
+        // rewardAmounts is intialised to an array of length rewardTokens, so this should succeed
         if (rewardAmounts.length != rewardTokens.length) {
             revert RewardAmountsLengthMismatch(
                 rewardAmounts.length,
@@ -265,6 +271,7 @@ contract DStakeRewardManagerDLend is RewardClaimable {
         for (uint256 i = 0; i < rewardTokens.length; ++i) {
             uint256 rewardAmount = rewardAmounts[i];
             uint256 treasuryFee = getTreasuryFee(rewardAmount);
+            // sanity check
             if (treasuryFee > rewardAmount) {
                 revert TreasuryFeeExceedsRewardAmount(
                     treasuryFee,
@@ -272,6 +279,7 @@ contract DStakeRewardManagerDLend is RewardClaimable {
                 );
             }
             IERC20(rewardTokens[i]).safeTransfer(treasury, treasuryFee);
+            // Transfer user excess after deducting treasury fee
             IERC20(rewardTokens[i]).safeTransfer(
                 receiver,
                 rewardAmount - treasuryFee

@@ -59,7 +59,7 @@ contract ChainlinkDecimalConverter is AggregatorV3Interface {
 
         // Calculate the scaling factor to convert from source to target decimals
         uint8 decimalDifference = sourceDecimals - _targetDecimals;
-        scalingFactor = int256(10 ** decimalDifference);
+        scalingFactor = int256(10 ** decimalDifference); // can be 0, 10^1, 10^2, 10^3, etc
     }
 
     /**

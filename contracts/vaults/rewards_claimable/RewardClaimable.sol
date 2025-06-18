@@ -34,9 +34,11 @@ abstract contract RewardClaimable is AccessControl, ReentrancyGuard {
     bytes32 public constant REWARDS_MANAGER_ROLE =
         keccak256("REWARDS_MANAGER_ROLE");
 
-    // State variables
+    // State variables, set in constructor
     address public treasury;
     uint256 public treasuryFeeBps;
+
+    // minimum amount requirement for the exchangeAsset that users must provide
     uint256 public exchangeThreshold;
     address public immutable exchangeAsset;
     uint256 public immutable maxTreasuryFeeBps;
@@ -216,6 +218,7 @@ abstract contract RewardClaimable is AccessControl, ReentrancyGuard {
         emit RewardCompounded(exchangeAsset, amount, rewardTokens);
 
         // Claim the rewards
+        // @pattern calls the _claimRewards in the child contract
         uint256[] memory rewardAmounts = _claimRewards(
             rewardTokens,
             address(this)

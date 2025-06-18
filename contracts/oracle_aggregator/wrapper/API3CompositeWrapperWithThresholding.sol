@@ -120,13 +120,16 @@ contract API3CompositeWrapperWithThresholding is
         uint256 fixedPriceInBase2
     ) external onlyRole(ORACLE_MANAGER_ROLE) {
         CompositeFeed storage feed = compositeFeeds[asset];
+
         if (feed.proxy1 == address(0) || feed.proxy2 == address(0)) {
             revert FeedNotSet(asset);
         }
+
         feed.primaryThreshold.lowerThresholdInBase = lowerThresholdInBase1;
         feed.primaryThreshold.fixedPriceInBase = fixedPriceInBase1;
         feed.secondaryThreshold.lowerThresholdInBase = lowerThresholdInBase2;
         feed.secondaryThreshold.fixedPriceInBase = fixedPriceInBase2;
+
         emit CompositeFeedUpdated(
             asset,
             lowerThresholdInBase1,
@@ -140,6 +143,8 @@ contract API3CompositeWrapperWithThresholding is
         address asset
     ) public view override returns (uint256 price, bool isAlive) {
         CompositeFeed memory feed = compositeFeeds[asset];
+
+        // Revert if both feeds not set
         if (feed.proxy1 == address(0) || feed.proxy2 == address(0)) {
             revert FeedNotSet(asset);
         }
@@ -158,6 +163,7 @@ contract API3CompositeWrapperWithThresholding is
         if (feed.primaryThreshold.lowerThresholdInBase > 0) {
             priceInBase1 = _applyThreshold(priceInBase1, feed.primaryThreshold);
         }
+
         if (feed.secondaryThreshold.lowerThresholdInBase > 0) {
             priceInBase2 = _applyThreshold(
                 priceInBase2,
@@ -166,6 +172,7 @@ contract API3CompositeWrapperWithThresholding is
         }
 
         price = (priceInBase1 * priceInBase2) / BASE_CURRENCY_UNIT;
+        
         isAlive =
             price > 0 &&
             timestamp1 + API3_HEARTBEAT + heartbeatStaleTimeLimit >

@@ -40,6 +40,7 @@ contract RedstoneChainlinkWrapper is BaseChainlinkWrapper {
             revert FeedNotSet(asset);
         }
 
+        // uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound
         (, int256 answer, , uint256 updatedAt, ) = feed.latestRoundData();
 
         // Validate the oracle data
@@ -48,6 +49,9 @@ contract RedstoneChainlinkWrapper is BaseChainlinkWrapper {
         }
 
         price = uint256(answer);
+        // @audit BUG: hardcoded heartbeat
+        // @audit BUG: using chainlink heartbeat for redstone oracles, which is incorrect
+        // @audit BUG: Adds extra param heartbeatStaleTimeLimit
         isAlive =
             updatedAt + CHAINLINK_HEARTBEAT + heartbeatStaleTimeLimit >
             block.timestamp;

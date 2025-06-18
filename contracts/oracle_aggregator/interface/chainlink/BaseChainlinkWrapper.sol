@@ -28,6 +28,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 abstract contract BaseChainlinkWrapper is IOracleWrapper, AccessControl {
     /* Core state */
 
+    // @audit BUG: not all chainlink oracles have 8 decimals
     uint256 public constant CHAINLINK_BASE_CURRENCY_UNIT = 10 ** 8; // Chainlink uses 8 decimals
     uint256 public constant CHAINLINK_HEARTBEAT = 24 hours;
     address private immutable _baseCurrency;
@@ -53,6 +54,7 @@ abstract contract BaseChainlinkWrapper is IOracleWrapper, AccessControl {
     constructor(address baseCurrency, uint256 _baseCurrencyUnit) {
         _baseCurrency = baseCurrency;
         BASE_CURRENCY_UNIT = _baseCurrencyUnit;
+        
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ORACLE_MANAGER_ROLE, msg.sender);
     }

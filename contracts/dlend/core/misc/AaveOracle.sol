@@ -66,6 +66,7 @@ contract AaveOracle is IAaveOracle {
             oracleUnit >= BASE_CURRENCY_UNIT,
             "AaveOracle: oracle decimals too low"
         );
+        // @audit deeper why is the scaling factor stored as such?
         SCALING_FACTOR = oracleUnit / BASE_CURRENCY_UNIT;
 
         emit BaseCurrencySet(BASE_CURRENCY, BASE_CURRENCY_UNIT);

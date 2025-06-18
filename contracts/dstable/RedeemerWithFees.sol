@@ -26,13 +26,13 @@ import "contracts/common/BasisPointConstants.sol";
 
 contract RedeemerWithFees is AccessControl, OracleAware {
     /* Constants */
-    uint256 public immutable MAX_FEE_BPS;
+    uint256 public immutable MAX_FEE_BPS; // set to 5%
 
     /* Core state */
     IMintableERC20 public dstable;
     uint8 public immutable dstableDecimals;
     CollateralVault public collateralVault;
-    uint256 public immutable BASE_UNIT;
+    uint256 public immutable BASE_UNIT; // _oracle.BASE_CURRENCY_UNIT();
 
     /* Fee related state */
     address public feeReceiver;
@@ -139,6 +139,7 @@ contract RedeemerWithFees is AccessControl, OracleAware {
             dstableValue,
             collateralAsset
         );
+        
         // Calculate fee
         uint256 feeCollateral = 0;
         uint256 currentFeeBps = collateralRedemptionFeeBps[collateralAsset];

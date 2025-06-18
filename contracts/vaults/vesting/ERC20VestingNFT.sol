@@ -44,6 +44,7 @@ contract ERC20VestingNFT is ERC721, ERC721Enumerable, Ownable, ReentrancyGuard {
     struct VestingPosition {
         uint256 amount; // Amount of dSTAKE deposited
         uint256 depositTime; // Timestamp when deposit was made
+        // @pattern initialised to false in deposit(), marked as true in withdrawMatured()
         bool matured; // Whether the NFT has been matured (soul-bound)
     }
 
@@ -113,6 +114,7 @@ contract ERC20VestingNFT is ERC721, ERC721Enumerable, Ownable, ReentrancyGuard {
             revert ZeroAmount();
         }
 
+        // Set state vars
         dstakeToken = IERC20(_dstakeToken);
         vestingPeriod = _vestingPeriod;
         maxTotalSupply = _maxTotalSupply;
@@ -133,6 +135,7 @@ contract ERC20VestingNFT is ERC721, ERC721Enumerable, Ownable, ReentrancyGuard {
     function deposit(
         uint256 amount
     ) external nonReentrant returns (uint256 tokenId) {
+        // Basic validation checks
         if (amount == 0) revert ZeroAmount();
         if (!depositsEnabled) revert DepositsDisabled();
         if (amount < minDepositAmount) revert DepositBelowMinimum();
@@ -142,9 +145,11 @@ contract ERC20VestingNFT is ERC721, ERC721Enumerable, Ownable, ReentrancyGuard {
         // Transfer dSTAKE tokens from user
         dstakeToken.safeTransferFrom(msg.sender, address(this), amount);
 
-        // Mint NFT
+        // set tokenID and update state var
         tokenId = _tokenIdCounter;
         _tokenIdCounter++;
+
+        // Mint NFT with tokenID to caller
         _safeMint(msg.sender, tokenId);
 
         // Store vesting position
@@ -166,10 +171,15 @@ contract ERC20VestingNFT is ERC721, ERC721Enumerable, Ownable, ReentrancyGuard {
      */
     function redeemEarly(uint256 tokenId) external nonReentrant {
         if (!_tokenExists(tokenId)) revert TokenNotExists();
+        
+        // auth check
         if (ownerOf(tokenId) != msg.sender) revert NotTokenOwner();
 
+        // Verify token is not already matured
         VestingPosition memory position = vestingPositions[tokenId];
         if (position.matured) revert TokenAlreadyMatured();
+
+        // Cannot redeemEarly if vesting period has elapsed -> need to call withdrawaMatured()
         if (block.timestamp >= position.depositTime + vestingPeriod) {
             revert VestingAlreadyComplete();
         }
@@ -195,10 +205,15 @@ contract ERC20VestingNFT is ERC721, ERC721Enumerable, Ownable, ReentrancyGuard {
      */
     function withdrawMatured(uint256 tokenId) external nonReentrant {
         if (!_tokenExists(tokenId)) revert TokenNotExists();
+        
+        // Auth check
         if (ownerOf(tokenId) != msg.sender) revert NotTokenOwner();
 
+        // Verify token is not already matured
         VestingPosition storage position = vestingPositions[tokenId];
         if (position.matured) revert TokenAlreadyMatured();
+
+        // Verify vesting period has elapsed
         if (block.timestamp < position.depositTime + vestingPeriod) {
             revert VestingNotComplete();
         }
@@ -334,6 +349,7 @@ contract ERC20VestingNFT is ERC721, ERC721Enumerable, Ownable, ReentrancyGuard {
         // Allow minting and burning
         if (from != address(0) && to != address(0)) {
             // Prevent transfer of matured NFTs
+            // @audit BUG: Matured NFTs can still be transferred if withdrawMatured() has not been called yet
             if (vestingPositions[tokenId].matured) {
                 revert TransferOfMaturedToken();
             }

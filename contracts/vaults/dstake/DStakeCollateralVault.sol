@@ -62,6 +62,7 @@ contract DStakeCollateralVault is IDStakeCollateralVault, AccessControl {
     /**
      * @inheritdoc IDStakeCollateralVault
      */
+    // @pattern used for calculating totalAssets(): Number of dSTABLE tokens belonging to the collateral vault
     function totalValueInDStable()
         external
         view
@@ -70,13 +71,22 @@ contract DStakeCollateralVault is IDStakeCollateralVault, AccessControl {
     {
         uint256 totalValue = 0;
         uint256 len = _supportedAssets.length();
+        
+        // Loop through all the supported assets
         for (uint256 i = 0; i < len; i++) {
-            address vaultAsset = _supportedAssets.at(i);
+
+            address vaultAsset = _supportedAssets.at(i); // Wrapped DLEND token
             address adapterAddress = IAdapterProvider(router)
                 .vaultAssetToAdapter(vaultAsset);
+
             if (adapterAddress != address(0)) {
+                // Get the number of wrapped DLEND tokens this contract holds
                 uint256 balance = IERC20(vaultAsset).balanceOf(address(this));
+                
                 if (balance > 0) {
+                    // Find out how many dStable tokens they are worth if redeeming now
+                    // -> WrappedDLendConversionAdapter: assetValueInDStable()
+                    // -> StaticATokenLM: previewRedeem()
                     totalValue += IDStableConversionAdapter(adapterAddress)
                         .assetValueInDStable(vaultAsset, balance);
                 }

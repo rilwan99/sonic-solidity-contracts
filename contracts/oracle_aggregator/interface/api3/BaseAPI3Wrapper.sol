@@ -51,6 +51,7 @@ abstract contract BaseAPI3Wrapper is IOracleWrapper, AccessControl {
     constructor(address baseCurrency, uint256 _baseCurrencyUnit) {
         _baseCurrency = baseCurrency;
         BASE_CURRENCY_UNIT = _baseCurrencyUnit;
+        
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ORACLE_MANAGER_ROLE, msg.sender);
     }

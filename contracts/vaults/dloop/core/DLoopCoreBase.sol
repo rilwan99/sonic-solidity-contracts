@@ -51,6 +51,7 @@ abstract contract DLoopCoreBase is
 
     /* Constants */
 
+    // > ONE_HUNDRED_PERCENT_BPS (100%)
     uint32 public immutable targetLeverageBps; // ie. 30000 = 300% in basis points, means 3x leverage
     ERC20 public immutable collateralToken;
     ERC20 public immutable debtToken;
@@ -194,7 +195,7 @@ abstract contract DLoopCoreBase is
         uint256 _maxSubsidyBps
     ) ERC20(_name, _symbol) ERC4626(_collateralToken) Ownable(msg.sender) {
         debtToken = _debtToken;
-        collateralToken = _collateralToken;
+        collateralToken = _collateralToken; // acts as the "asset"
 
         if (_targetLeverageBps < BasisPointConstants.ONE_HUNDRED_PERCENT_BPS) {
             revert("Target leverage must be at least 100% in basis points");
@@ -221,6 +222,7 @@ abstract contract DLoopCoreBase is
             revert("Debt token must be an ERC-20");
         }
 
+        // Set state vars
         targetLeverageBps = _targetLeverageBps;
         lowerBoundTargetLeverageBps = _lowerBoundTargetLeverageBps;
         upperBoundTargetLeverageBps = _upperBoundTargetLeverageBps;
@@ -383,6 +385,8 @@ abstract contract DLoopCoreBase is
         // Allow a 1-wei rounding tolerance when comparing the observed balance change with `amount`
         uint256 observedDiffBorrow = tokenBalanceAfterBorrow -
             tokenBalanceBeforeBorrow;
+        
+        // User receives more borrow tokens than requested amount
         if (observedDiffBorrow > amount) {
             if (observedDiffBorrow - amount > BALANCE_DIFF_TOLERANCE) {
                 revert UnexpectedBorrowAmountFromPool(

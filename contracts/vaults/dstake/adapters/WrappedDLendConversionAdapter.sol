@@ -89,9 +89,12 @@ contract WrappedDLendConversionAdapter is IDStableConversionAdapter {
         (_vaultAsset, vaultAssetAmount) = previewConvertToVaultAsset(
             dStableAmount
         );
+        
+        // @pattern calls StaticATokenLM:deposit(), which deposits dStable into Aave and
+        // mints the A-tokens to the collateral Vault
         vaultAssetAmount = IERC4626(address(wrappedDLendToken)).deposit(
             dStableAmount,
-            collateralVault
+            collateralVault // @note receiver is set to the collateral vault
         );
 
         return (address(wrappedDLendToken), vaultAssetAmount);
@@ -146,7 +149,9 @@ contract WrappedDLendConversionAdapter is IDStableConversionAdapter {
             _vaultAsset == address(wrappedDLendToken),
             "Incorrect vault asset address"
         );
+
         // previewRedeem takes shares (vaultAssetAmount) and returns assets (dStableValue)
+        // Calls 
         return
             IERC4626(address(wrappedDLendToken)).previewRedeem(
                 vaultAssetAmount
@@ -173,6 +178,7 @@ contract WrappedDLendConversionAdapter is IDStableConversionAdapter {
         returns (address _vaultAsset, uint256 vaultAssetAmount)
     {
         _vaultAsset = address(wrappedDLendToken);
+        // @pattern this returns the number of shares tho
         vaultAssetAmount = IERC4626(address(wrappedDLendToken)).previewDeposit(
             dStableAmount
         );

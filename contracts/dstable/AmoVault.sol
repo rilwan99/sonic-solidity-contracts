@@ -65,6 +65,7 @@ abstract contract AmoVault is CollateralVault, IRecoverable, ReentrancyGuard {
         dstable = IMintableERC20(_dstable);
         dstableDecimals = IERC20Metadata(_dstable).decimals();
         amoManager = AmoManager(_amoManager);
+        
         _grantRole(DEFAULT_ADMIN_ROLE, _admin);
         grantRole(COLLATERAL_WITHDRAWER_ROLE, _collateralWithdrawer);
         grantRole(RECOVERER_ROLE, _recoverer);

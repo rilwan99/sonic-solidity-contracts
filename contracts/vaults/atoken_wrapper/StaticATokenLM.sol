@@ -547,12 +547,12 @@ contract StaticATokenLM is ERC20, IStaticATokenLM, IERC4626 {
     }
 
     function _deposit(
-        address depositor,
+        address depositor, // msg.sender
         address receiver,
-        uint256 _shares,
+        uint256 _shares, // 0
         uint256 _assets,
-        uint16 referralCode,
-        bool depositToAave
+        uint16 referralCode, // 0
+        bool depositToAave // true
     ) internal returns (uint256, uint256) {
         require(receiver != address(0), StaticATokenErrors.INVALID_RECIPIENT);
         require(
@@ -583,12 +583,15 @@ contract StaticATokenLM is ERC20, IStaticATokenLM, IERC4626 {
 
         if (depositToAave) {
             address cachedATokenUnderlying = _aTokenUnderlying;
+            // Transfer dStable tokens from caller to this contract
             SafeERC20.safeTransferFrom(
                 IERC20(cachedATokenUnderlying),
                 depositor,
                 address(this),
                 assets
             );
+
+            // Deposit dStable tokens into the pool
             POOL.deposit(
                 cachedATokenUnderlying,
                 assets,
@@ -599,6 +602,7 @@ contract StaticATokenLM is ERC20, IStaticATokenLM, IERC4626 {
             _aToken.safeTransferFrom(depositor, address(this), assets);
         }
 
+        // Mint a tokens (ERC20 tokens) to receiver
         _mint(receiver, shares);
 
         emit Deposit(depositor, receiver, assets, shares);

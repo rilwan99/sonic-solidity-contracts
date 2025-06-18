@@ -294,13 +294,11 @@ contract RewardsController is
             assets.length
         );
         for (uint256 i = 0; i < assets.length; i++) {
-            userAssetBalances[i].asset = assets[i];
-            (
-                userAssetBalances[i].userBalance,
-                userAssetBalances[i].totalSupply
-            ) = IScaledBalanceToken(assets[i]).getScaledUserBalanceAndSupply(
-                user
-            );
+            userAssetBalances[i].asset = assets[i]; // set the asset field
+
+            // getScaledUserBalanceAndSupply returns balanceOf(user) and totalSupply
+            (userAssetBalances[i].userBalance, userAssetBalances[i].totalSupply) = 
+                IScaledBalanceToken(assets[i]).getScaledUserBalanceAndSupply(user);
         }
         return userAssetBalances;
     }
@@ -316,7 +314,7 @@ contract RewardsController is
      * @return Rewards claimed
      **/
     function _claimRewards(
-        address[] calldata assets,
+        address[] calldata assets, // assetsToClaimForPayload[0] = dLendAssetToClaimFor
         uint256 amount,
         address claimer,
         address user,
@@ -328,7 +326,10 @@ contract RewardsController is
         }
         uint256 totalRewards;
 
+        // Struct UserAssetBalance { asset, userBalance, totalSupply}
+        // _getUserAssetBalances() returns user's balance and total supply of the specified asset (reward token)
         _updateDataMultiple(user, _getUserAssetBalances(assets, user));
+        
         for (uint256 i = 0; i < assets.length; i++) {
             address asset = assets[i];
             totalRewards += _assets[asset]

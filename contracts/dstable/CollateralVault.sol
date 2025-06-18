@@ -69,6 +69,7 @@ abstract contract CollateralVault is AccessControl, OracleAware {
         IPriceOracleGetter oracle
     ) OracleAware(oracle, oracle.BASE_CURRENCY_UNIT()) {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender); // This is the super admin
+        
         grantRole(COLLATERAL_MANAGER_ROLE, msg.sender);
         grantRole(COLLATERAL_WITHDRAWER_ROLE, msg.sender);
         grantRole(COLLATERAL_STRATEGY_ROLE, msg.sender);

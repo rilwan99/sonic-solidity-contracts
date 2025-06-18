@@ -42,8 +42,10 @@ contract API3WrapperWithThresholding is API3Wrapper, ThresholdingUtils {
         address asset
     ) public view override returns (uint256 price, bool isAlive) {
         (price, isAlive) = super.getPriceInfo(asset);
+        
         if (isAlive) {
             ThresholdConfig memory config = assetThresholds[asset];
+            // @pattern only apply threshold if it was set
             if (config.lowerThresholdInBase > 0) {
                 price = _applyThreshold(price, config);
             }

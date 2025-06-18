@@ -93,20 +93,22 @@ contract DStakeRouterDLend is IDStakeRouter, AccessControl {
     /**
      * @inheritdoc IDStakeRouter
      */
+    // @pattern called by DStakeToken:_deposit(), tranfers dStable to this contract, which 
+    // converts it to yield bearing token and deposits that into dStake Collateral Vault
     function deposit(
         uint256 dStableAmount,
         address receiver
     ) external override onlyRole(DSTAKE_TOKEN_ROLE) {
         address adapterAddress = vaultAssetToAdapter[defaultDepositVaultAsset];
+        
         if (adapterAddress == address(0)) {
             revert AdapterNotFound(defaultDepositVaultAsset);
         }
 
-        (
-            address vaultAssetExpected,
-            uint256 expectedShares
-        ) = IDStableConversionAdapter(adapterAddress)
-                .previewConvertToVaultAsset(dStableAmount);
+        // Preview the result of converting a given dSTABLE amount to wrappedDLendToken.
+        // WrappedDLendConversionAdapter: previewConvertToVaultAsset
+        (address vaultAssetExpected, uint256 expectedShares) 
+            = IDStableConversionAdapter(adapterAddress).previewConvertToVaultAsset(dStableAmount);
 
         uint256 mintedShares = _executeDeposit(
             adapterAddress,
@@ -138,6 +140,7 @@ contract DStakeRouterDLend is IDStakeRouter, AccessControl {
      * @param dStableAmount The amount of dStable being deposited.
      * @return mintedShares The number of vault asset shares minted.
      */
+    // @pattern called during DStakeRouterDLend: deposit()
     function _executeDeposit(
         address adapterAddress,
         address vaultAssetExpected,
@@ -158,13 +161,11 @@ contract DStakeRouterDLend is IDStakeRouter, AccessControl {
         IERC20(dStable).approve(adapterAddress, dStableAmount);
 
         // Convert dStable to vault asset (minted directly to collateral vault)
-        (
-            address vaultAssetActual,
-            uint256 reportedShares
-        ) = IDStableConversionAdapter(adapterAddress).convertToVaultAsset(
-                dStableAmount
-            );
+        (address vaultAssetActual,uint256 reportedShares) 
+            = IDStableConversionAdapter(adapterAddress).convertToVaultAsset(dStableAmount);
 
+        // @pattern verify the shares token minted to Collateral Vault from depositing dStable into Aave is
+        // the same as address returned by the adapter
         if (vaultAssetActual != vaultAssetExpected) {
             revert AdapterAssetMismatch(
                 adapterAddress,
@@ -293,6 +294,7 @@ contract DStakeRouterDLend is IDStakeRouter, AccessControl {
         );
 
         // 1. Get assets and calculate equivalent dStable amount
+        // @pattern calls wrappedDLendToken:previewRedeem(uint shares)
         uint256 dStableAmountEquivalent = fromAdapter
             .previewConvertFromVaultAsset(fromVaultAssetAmount);
 
@@ -314,11 +316,11 @@ contract DStakeRouterDLend is IDStakeRouter, AccessControl {
 
         // 4. Approve toAdapter & Convert dStable -> toVaultAsset (sent to collateralVault)
         IERC20(dStable).approve(toAdapterAddress, receivedDStable);
-        (
-            address actualToVaultAsset,
-            uint256 resultingToVaultAssetAmount
-        ) = toAdapter.convertToVaultAsset(receivedDStable);
+
+        (address actualToVaultAsset,uint256 resultingToVaultAssetAmount) 
+            = toAdapter.convertToVaultAsset(receivedDStable);
         require(actualToVaultAsset == toVaultAsset, "Adapter asset mismatch");
+        
         // Slippage control: ensure output meets minimum requirement
         if (resultingToVaultAssetAmount < minToVaultAssetAmount) {
             revert SlippageCheckFailed(
@@ -466,29 +468,36 @@ contract DStakeRouterDLend is IDStakeRouter, AccessControl {
      * @param adapterAddress The address of the new adapter contract.
      */
     function addAdapter(
-        address vaultAsset,
-        address adapterAddress
+        address vaultAsset, // Wrapped DLend Token, e.g wddUSD
+        address adapterAddress // Converts dStable to Wrapped DLend token, vice versa
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (adapterAddress == address(0) || vaultAsset == address(0)) {
             revert ZeroAddress();
         }
+
         address adapterVaultAsset = IDStableConversionAdapter(adapterAddress)
             .vaultAsset();
+
+        // Vault Asset Match Check
         if (adapterVaultAsset != vaultAsset)
             revert AdapterAssetMismatch(
                 adapterAddress,
                 vaultAsset,
                 adapterVaultAsset
             );
+        
+        // Prevent Adapter Collision
         if (
-            vaultAssetToAdapter[vaultAsset] != address(0) &&
-            vaultAssetToAdapter[vaultAsset] != adapterAddress
+            vaultAssetToAdapter[vaultAsset] != address(0) &&  // existing adapter has been set
+            vaultAssetToAdapter[vaultAsset] != adapterAddress // existing adapter is not equal to the new one
         ) {
             revert VaultAssetManagedByDifferentAdapter(
                 vaultAsset,
                 vaultAssetToAdapter[vaultAsset]
             );
         }
+
+        // Update mapping in storage
         vaultAssetToAdapter[vaultAsset] = adapterAddress;
 
         // Inform the collateral vault of the new supported asset list (no-op if already added)
@@ -511,6 +520,8 @@ contract DStakeRouterDLend is IDStakeRouter, AccessControl {
         if (adapterAddress == address(0)) {
             revert AdapterNotFound(vaultAsset);
         }
+
+        // Delete adapter from mapping
         delete vaultAssetToAdapter[vaultAsset];
 
         // Inform the collateral vault to remove supported asset (ignore if not present)
@@ -527,9 +538,12 @@ contract DStakeRouterDLend is IDStakeRouter, AccessControl {
     function setDefaultDepositVaultAsset(
         address vaultAsset
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        // Ensure adapter is set first, for the default Vault Asset
         if (vaultAssetToAdapter[vaultAsset] == address(0)) {
             revert AdapterNotFound(vaultAsset);
         }
+
+        // Update mapping in storage
         defaultDepositVaultAsset = vaultAsset;
         emit DefaultDepositVaultAssetSet(vaultAsset);
     }

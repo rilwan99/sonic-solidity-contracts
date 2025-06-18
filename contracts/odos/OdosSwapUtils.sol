@@ -33,6 +33,9 @@ library OdosSwapUtils {
     ) internal returns (uint256) {
         ERC20(inputToken).approve(address(router), maxIn);
 
+        // Performs a low level call to the router contract
+        // swapData is the pre-encoded calldata that contains the actual function and parameters
+        // returns uint32 amount
         (bool success, bytes memory result) = address(router).call(swapData);
         if (!success) {
             // Decode the revert reason if present
@@ -47,6 +50,9 @@ library OdosSwapUtils {
         }
 
         uint256 actualAmountOut;
+        // 1. result points to the start of the bytes array
+        // 2. add(result, 32) skips the first 32 bytes (the length field)
+        // 3. mload(add(result, 32)) loads the next 32 bytes, which contains the actual uint256 return value
         assembly {
             actualAmountOut := mload(add(result, 32))
         }

@@ -350,6 +350,7 @@ abstract contract RewardsDistributor is IRewardsDistributor {
             rewardData.index = uint104(newIndex);
             rewardData.lastUpdateTimestamp = block.timestamp.toUint32();
         } else {
+            // @audit We update lastUpdateTimestamp even when there is no change in global indexs
             rewardData.lastUpdateTimestamp = block.timestamp.toUint32();
         }
 
@@ -378,6 +379,7 @@ abstract contract RewardsDistributor is IRewardsDistributor {
         if ((dataUpdated = userIndex != newAssetIndex)) {
             // already checked for overflow in _updateRewardData
             rewardData.usersData[user].index = uint104(newAssetIndex);
+            
             if (userBalance != 0) {
                 rewardsAccrued = _getRewards(
                     userBalance,
@@ -401,10 +403,10 @@ abstract contract RewardsDistributor is IRewardsDistributor {
      * @param totalSupply Total supply of the asset
      **/
     function _updateData(
-        address asset,
+        address asset, // returned from _getUserAssetBalances()
         address user,
-        uint256 userBalance,
-        uint256 totalSupply
+        uint256 userBalance, // returned from _getUserAssetBalances()
+        uint256 totalSupply // returned from _getUserAssetBalances()
     ) internal {
         uint256 assetUnit;
         uint256 numAvailableRewards = _assets[asset].availableRewardsCount;
@@ -416,20 +418,19 @@ abstract contract RewardsDistributor is IRewardsDistributor {
             return;
         }
         unchecked {
+            // Loop through each reward token
             for (uint128 r = 0; r < numAvailableRewards; r++) {
+
+                // get the address of the reward token
                 address reward = _assets[asset].availableRewards[r];
+
+                // Struct RewardData { index, emissionPerSecond, lastUpdateTimestamp, distributionEnd, usersData}
                 RewardsDataTypes.RewardData storage rewardData = _assets[asset]
                     .rewards[reward];
 
-                (
-                    uint256 newAssetIndex,
-                    bool rewardDataUpdated
-                ) = _updateRewardData(rewardData, totalSupply, assetUnit);
+                (uint256 newAssetIndex, bool rewardDataUpdated) = _updateRewardData(rewardData, totalSupply, assetUnit);
 
-                (
-                    uint256 rewardsAccrued,
-                    bool userDataUpdated
-                ) = _updateUserData(
+                (uint256 rewardsAccrued,bool userDataUpdated) = _updateUserData(
                         rewardData,
                         user,
                         userBalance,
@@ -458,7 +459,7 @@ abstract contract RewardsDistributor is IRewardsDistributor {
      **/
     function _updateDataMultiple(
         address user,
-        RewardsDataTypes.UserAssetBalance[] memory userAssetBalances
+        RewardsDataTypes.UserAssetBalance[] memory userAssetBalances // Array of length 1
     ) internal {
         for (uint256 i = 0; i < userAssetBalances.length; i++) {
             _updateData(
@@ -585,6 +586,8 @@ abstract contract RewardsDistributor is IRewardsDistributor {
             : block.timestamp;
         uint256 timeDelta = currentTimestamp - lastUpdateTimestamp;
         uint256 firstTerm = emissionPerSecond * timeDelta * assetUnit;
+        
+        // @audit performs integer division, which can result in rounding down
         assembly {
             firstTerm := div(firstTerm, totalSupply)
         }

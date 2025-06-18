@@ -58,6 +58,7 @@ contract AmoManager is AccessControl, OracleAware {
     // allocation bookkeeping (which may change when moving collateral) from the
     // governance‐controlled active status of a vault.
     mapping(address => bool) private _isAmoActive;
+
     uint256 public totalAllocated;
     IMintableERC20 public dstable;
     CollateralVault public collateralHolderVault;
@@ -247,6 +248,8 @@ contract AmoManager is AccessControl, OracleAware {
         }
         // Ensure the vault is tracked in the allocation map (initial allocation may be zero)
         (, uint256 currentAllocation) = _amoVaults.tryGet(amoVault);
+
+        // @pattern adds the key (addr amoVault) if it doesnt exists and update the _isAmoActive mapping
         _amoVaults.set(amoVault, currentAllocation);
         _isAmoActive[amoVault] = true;
         emit AmoVaultSet(amoVault, true);
@@ -262,6 +265,7 @@ contract AmoManager is AccessControl, OracleAware {
         if (!_isAmoActive[amoVault]) {
             revert InactiveAmoVault(amoVault);
         }
+        // @pattern sets the _isAmoActive mapping to false
         _isAmoActive[amoVault] = false;
         emit AmoVaultSet(amoVault, false);
     }
